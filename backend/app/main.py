@@ -1,0 +1,46 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from app.core.config import settings
+from app.core.database import init_db
+from app.api.v1 import auth, documents, tutor, quizzes, analytics
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialize database tables
+    await init_db()
+    yield
+    # Shutdown logic if needed
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    description="StudyMind AI - محرك المذاكرة والتعلم الذكي للطلاب العرب (Arabic-First AI Study Engine)",
+    lifespan=lifespan
+)
+
+# Configure CORS for Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows Next.js (http://localhost:3000) and mobile apps
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register API v1 Routers
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["المصادقة والمستخدمين (Auth)"])
+app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["المستندات والكتب (Documents)"])
+app.include_router(tutor.router, prefix=f"{settings.API_V1_STR}/tutor", tags=["المعلم الذكي (AI Tutor)"])
+app.include_router(quizzes.router, prefix=f"{settings.API_V1_STR}/quizzes", tags=["الاختبارات والتقييم (Quizzes)"])
+app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["التعلم التكيفي والإحصائيات (Analytics)"])
+
+@app.get("/", tags=["الحالة (Health)"])
+async def root():
+    return {
+        "project": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "status": "online",
+        "description": "نظام StudyMind AI يعمل بنجاح وجاهز لخدمة الطلاب 🚀",
+        "docs_url": "/docs"
+    }

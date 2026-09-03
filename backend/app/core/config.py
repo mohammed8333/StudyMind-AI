@@ -1,0 +1,56 @@
+import os
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Project root directory
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "StudyMind AI"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
+    
+    # Environment & Paths
+    UPLOAD_DIR: str = str(BASE_DIR / "uploads")
+    
+    # Database
+    DATABASE_URL: str = "postgresql+asyncpg://studymind:studymind_secret@localhost:5432/studymind_db"
+    SQLITE_FALLBACK_URL: str = f"sqlite+aiosqlite:///{BASE_DIR / 'studymind.db'}"
+    USE_SQLITE_FALLBACK: bool = True
+    
+    # Security
+    SECRET_KEY: str = "studymind_super_secret_jwt_key_2026_dev_mode"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    
+    # AI Engine
+    LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    
+    # Groq (Super Fast & Free: https://console.groq.com/keys)
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    
+    # OpenRouter (Free models: https://openrouter.ai/keys)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
+    
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5:7b"
+    
+    # Embeddings
+    EMBEDDING_PROVIDER: str = "local"  # "gemini" | "ollama" | "local"
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: int = 384
+    
+    model_config = SettingsConfigDict(
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+settings = Settings()
+
+# Ensure uploads directory exists
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
