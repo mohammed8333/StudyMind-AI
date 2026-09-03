@@ -18,5 +18,5 @@ COPY backend/ /app/
 # Expose port
 EXPOSE 8000
 
-# Start server using the port provided by Railway or fallback to 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port "]
+# Start server on port 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
