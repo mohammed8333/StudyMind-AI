@@ -10,6 +10,15 @@ function getAuthHeader(): Record<string, string> {
   return {};
 }
 
+async function parseResponseError(res: Response, defaultMsg: string): Promise<string> {
+  try {
+    const err = await res.json();
+    return err.detail || defaultMsg;
+  } catch {
+    return `${defaultMsg} (رمز ${res.status}): تعذر الاتصال بالباك إند، تأكد من تشغيل السيرفر وصحة الرابط`;
+  }
+}
+
 export const api = {
   auth: {
     async register(data: { email: string; password: string; full_name: string; grade_or_level?: string }) {
@@ -19,8 +28,8 @@ export const api = {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "فشل إنشاء الحساب");
+        const msg = await parseResponseError(res, "فشل إنشاء الحساب");
+        throw new Error(msg);
       }
       return res.json();
     },
@@ -36,8 +45,8 @@ export const api = {
         body: formData.toString(),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "بيانات الدخول غير صحيحة");
+        const msg = await parseResponseError(res, "بيانات الدخول غير صحيحة");
+        throw new Error(msg);
       }
       const data = await res.json();
       if (typeof window !== "undefined") {
