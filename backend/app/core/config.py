@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Groq (Super Fast & Free: https://console.groq.com/keys)
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     
     # OpenRouter (Free models: https://openrouter.ai/keys)
     OPENROUTER_API_KEY: str = ""

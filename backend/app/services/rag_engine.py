@@ -164,7 +164,8 @@ async def generate_tutor_answer(
     raw_answer = await call_llm(
         prompt=user_prompt,
         system_instruction=system_prompt,
-        temperature=0.1
+        temperature=0.1,
+        max_tokens=1000
     )
     
     # Extract suggested followups if present
@@ -235,7 +236,8 @@ async def generate_document_summary(db: AsyncSession, document_id: int) -> Dict[
     summary_raw = await call_llm(
         prompt=prompt,
         system_instruction="أنت معلم StudyMind الذكي، لخص المادة بأسلوب مشجع ومنظم بالنقاط دون وسوم ماركداون معقدة.",
-        temperature=0.2
+        temperature=0.2,
+        max_tokens=1200
     )
     
     pages = [c.page_number for c in chunks]

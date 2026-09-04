@@ -213,7 +213,8 @@ async def generate_quiz_for_document(
         prompt=user_prompt,
         system_instruction=system_prompt,
         json_mode=True,
-        temperature=0.15
+        temperature=0.15,
+        max_tokens=2200
     )
     
     # 5. Parse and validate JSON
