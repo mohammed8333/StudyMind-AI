@@ -200,15 +200,15 @@ export default function DashboardPage() {
   const currentTip = DAILY_STUDY_TIPS[dailyTipIndex];
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 space-y-6 sm:space-y-8">
       {/* Welcome Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-brand-700 via-sky-600 to-indigo-700 text-white p-7 rounded-3xl shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-brand-700 via-sky-600 to-indigo-700 text-white p-5 sm:p-7 rounded-2xl sm:rounded-3xl shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-bold mb-2">
             <Flame className="w-4 h-4 text-amber-300 fill-amber-300 animate-pulse" />
             <span>يوم جديد، إنجاز جديد</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black">
+          <h1 className="text-xl sm:text-3xl font-black">
             أهلاً بك يا {user.full_name} 🎓
           </h1>
           <p className="text-xs sm:text-sm text-sky-100 mt-1 max-w-xl">
@@ -216,17 +216,17 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-center">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <Link
             href="/library"
-            className="px-5 py-3 bg-white text-brand-700 hover:bg-brand-50 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2"
+            className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 sm:py-3 bg-white text-brand-700 hover:bg-brand-50 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
           >
             <BookOpen className="w-4 h-4" />
             <span>تصفح المكتبة</span>
           </Link>
           <Link
             href="/quizzes"
-            className="px-4 py-3 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl backdrop-blur-sm transition-colors flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial px-4 py-2.5 sm:py-3 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl backdrop-blur-sm transition-colors flex items-center justify-center gap-1.5"
           >
             <PlayCircle className="w-4 h-4" />
             <span>الاختبارات</span>
@@ -235,37 +235,37 @@ export default function DashboardPage() {
       </div>
 
       {/* Proposal 1: Study Stats & Streak Bar (شريط الإنجاز والتحفيز) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {/* Streak */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400">أيام المذاكرة المتتالية</p>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-black text-slate-900">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400">أيام المذاكرة</p>
+            <div className="flex items-baseline gap-1 mt-0.5 sm:mt-1">
+              <span className="text-xl sm:text-2xl font-black text-slate-900">
                 {analytics?.streak_days ?? (documents.length > 0 ? 1 : 0)}
               </span>
-              <span className="text-xs font-bold text-amber-500">
+              <span className="text-[11px] sm:text-xs font-bold text-amber-500">
                 {(analytics?.streak_days ?? (documents.length > 0 ? 1 : 0)) > 0 ? "أيام 🔥" : "يوم"}
               </span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
-            <Flame className="w-6 h-6 fill-amber-500" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+            <Flame className="w-5 h-5 sm:w-6 sm:h-6 fill-amber-500" />
           </div>
         </div>
 
         {/* Overall Mastery */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400">نسبة الإتقان العام</p>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-black text-slate-900">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400">نسبة الإتقان</p>
+            <div className="flex items-baseline gap-1 mt-0.5 sm:mt-1">
+              <span className="text-xl sm:text-2xl font-black text-slate-900">
                 {analytics && analytics.total_quizzes_taken > 0
                   ? `${Math.round(analytics.average_score)}%`
                   : "0%"}
               </span>
               <span
-                className={`text-xs font-bold ${
+                className={`text-[11px] sm:text-xs font-bold ${
                   !analytics || analytics.total_quizzes_taken === 0
                     ? "text-slate-400"
                     : analytics.average_score >= 80
@@ -285,38 +285,38 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Target className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Target className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Questions Solved */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400">أسئلة تم حلها</p>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-black text-slate-900">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400">أسئلة تم حلها</p>
+            <div className="flex items-baseline gap-1 mt-0.5 sm:mt-1">
+              <span className="text-xl sm:text-2xl font-black text-slate-900">
                 {analytics?.total_questions_answered ?? ((analytics?.total_quizzes_taken || 0) * 5)}
               </span>
-              <span className="text-xs font-bold text-blue-600">سؤالاً</span>
+              <span className="text-[11px] sm:text-xs font-bold text-blue-600">سؤالاً</span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Total Documents */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400">المذكرات المفهرسة</p>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-black text-slate-900">{documents.length}</span>
-              <span className="text-xs font-bold text-purple-600">كتب</span>
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400">المذكرات</p>
+            <div className="flex items-baseline gap-1 mt-0.5 sm:mt-1">
+              <span className="text-xl sm:text-2xl font-black text-slate-900">{documents.length}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-purple-600">كتب</span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <BookOpen className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>

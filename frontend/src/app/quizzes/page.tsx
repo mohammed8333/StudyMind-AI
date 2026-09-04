@@ -126,15 +126,15 @@ export default function QuizzesPage() {
   if (!user) return null;
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 space-y-6 sm:space-y-8">
       {/* Top Banner & Launch CTA */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-700 via-teal-600 to-brand-700 text-white p-7 rounded-3xl shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-700 via-teal-600 to-brand-700 text-white p-5 sm:p-7 rounded-2xl sm:rounded-3xl shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-bold mb-2">
             <GraduationCap className="w-4 h-4 text-emerald-200" />
             <span>نظام الاختبارات والتقييم الذكي</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black">
+          <h1 className="text-xl sm:text-3xl font-black">
             سجل الاختبارات والتقييمات 📝
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100 mt-1 max-w-xl">
@@ -145,7 +145,7 @@ export default function QuizzesPage() {
         <button
           onClick={() => setShowGenerateModal(true)}
           disabled={documents.length === 0}
-          className="self-start sm:self-center px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 shrink-0 disabled:opacity-50"
+          className="w-full sm:w-auto self-stretch sm:self-center px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
         >
           <PlayCircle className="w-4 h-4" />
           <span>بدء اختبار جديد الآن</span>
@@ -153,7 +153,7 @@ export default function QuizzesPage() {
       </div>
 
       {/* Proposal 5: Top Summary Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400">إجمالي الاختبارات المنجزة</p>
