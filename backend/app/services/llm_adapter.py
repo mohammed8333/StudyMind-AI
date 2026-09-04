@@ -58,7 +58,7 @@ async def call_llm(
                 "model": settings.GROQ_MODEL,
                 "messages": messages,
                 "temperature": temperature,
-                "max_tokens": 1200,
+                "max_tokens": 3500,
             }
             if json_mode:
                 payload["response_format"] = {"type": "json_object"}
@@ -210,18 +210,7 @@ async def call_llm(
     # 5. Fallback Mock when no provider is configured OR temporary rate limit
     logger.info("Using Built-in Pedagogical Fallback Generator.")
     if json_mode:
-        return json.dumps({
-            "questions": [
-                {
-                    "question_text": "ما هو المفهوم الأساسي الوارد في هذا الفصل؟",
-                    "options": ["الخيار الأول الصحيح", "الخيار الثاني", "الخيار الثالث", "الخيار الرابع"],
-                    "correct_answer": "الخيار الأول الصحيح",
-                    "explanation": "تم استنتاج هذه الإجابة مباشرة من نصوص المادة المشروحة.",
-                    "concept_name": "المفاهيم الأساسية",
-                    "source_page": 1
-                }
-            ]
-        }, ensure_ascii=False)
+        return "{}"
         
     if settings.GROQ_API_KEY or settings.GEMINI_API_KEY:
         return "عذراً يا بطل، واجه المعلم ضغطاً مؤقتاً في طلبات الذكاء الاصطناعي (Rate Limit). يرجى الانتظار بضع ثوانٍ ثم الضغط على السؤال مرة أخرى وسيتم الرد عليك فوراً."

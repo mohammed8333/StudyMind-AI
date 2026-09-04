@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # AI Engine
     LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_MODEL: str = "gemini-1.5-flash"
     
     # Groq (Super Fast & Free: https://console.groq.com/keys)
     GROQ_API_KEY: str = ""
