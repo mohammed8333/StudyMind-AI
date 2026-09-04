@@ -60,3 +60,26 @@ async def login(
 async def get_current_student(user: User = Depends(get_current_user)):
     """Get profile details of the authenticated student."""
     return user
+
+@router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_my_account(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete the authenticated student account along with all their documents, quizzes, and data."""
+    # Delete uploaded files from disk if they exist
+    from app.models.document import Document
+    import os
+    stmt = select(Document).where(Document.owner_id == user.id)
+    res = await db.execute(stmt)
+    docs = res.scalars().all()
+    for d in docs:
+        if d.file_path and os.path.exists(d.file_path):
+            try:
+                os.remove(d.file_path)
+            except Exception:
+                pass
+
+    await db.delete(user)
+    await db.commit()
+    return {"message": "تم حذف الحساب وجميع البيانات المتعلقة به بنجاح."}

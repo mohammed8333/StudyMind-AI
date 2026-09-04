@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   BookOpen,
   BrainCircuit,
   ChevronLeft,
@@ -11,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -20,6 +22,9 @@ export default function Navbar() {
   const pathname = usePathname() || "";
   const [user, setUser] = useState<{ full_name: string; email: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("studymind_user");
@@ -41,6 +46,20 @@ export default function Navbar() {
     api.auth.logout();
     setUser(null);
     window.location.href = "/";
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await api.auth.deleteAccount();
+      setUser(null);
+      setDeleteModalOpen(false);
+      window.location.href = "/";
+    } catch (err: any) {
+      setDeleteError(err.message || "تعذر حذف الحساب والبيانات");
+      setIsDeleting(false);
+    }
   };
 
   const navLinks = [
@@ -104,9 +123,16 @@ export default function Navbar() {
                   <button
                     onClick={handleLogout}
                     title="تسجيل الخروج"
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-rose-50 rounded-xl transition-colors"
+                    className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteModalOpen(true)}
+                    title="حذف الحساب والبيانات نهائياً"
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
@@ -190,13 +216,23 @@ export default function Navbar() {
             </div>
 
             {user ? (
-              <div className="pt-2 border-t border-slate-100">
+              <div className="pt-2 border-t border-slate-100 space-y-2">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                  className="w-full flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>تسجيل الخروج من الحساب</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setDeleteModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>حذف الحساب والبيانات نهائياً</span>
                 </button>
               </div>
             ) : (
@@ -213,6 +249,51 @@ export default function Navbar() {
           </div>
         )}
       </nav>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 text-right rtl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-slate-900">
+                حذف الحساب والبيانات نهائياً؟
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                تنبيه هام: سيتم مسح حسابك بشكل كامل، بما في ذلك جميع المذكرات والملفات المرفوعة، والأسئلة، ونتائج الكويزات، وسجل الشات من قاعدة البيانات نهائياً. هذا الإجراء لا يمكن التراجع عنه.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteAccount}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-rose-200"
+              >
+                {isDeleting ? "جارٍ الحذف..." : "نعم، احذف نهائياً"}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteModalOpen(false)}
+                className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation Bar (App-style navigation for mobile) */}
       {user && !isStudyOrQuizRoom && (

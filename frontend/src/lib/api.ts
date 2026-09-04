@@ -73,6 +73,19 @@ export const api = {
       return res.json();
     },
 
+    async deleteAccount() {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل حذف الحساب");
+        throw new Error(msg);
+      }
+      this.logout();
+      return res.json();
+    },
+
     logout() {
       if (typeof window !== "undefined") {
         localStorage.removeItem("studymind_token");
