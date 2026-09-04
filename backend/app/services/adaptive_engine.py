@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast, Date
 from app.models.mastery import Concept, StudentMastery
 from app.models.quiz import Quiz, StudentSubmission
 from app.models.document import Document
@@ -23,12 +23,13 @@ async def get_student_analytics(
     doc_res = await db.execute(doc_count_stmt)
     total_docs = doc_res.scalar() or 0
     
-    # 2. Total quizzes taken & average score
+    # 2. Total quizzes taken & average score & questions answered
     if document_id is not None:
         sub_stmt = (
             select(
                 func.count(StudentSubmission.id),
-                func.avg(StudentSubmission.percentage)
+                func.avg(StudentSubmission.percentage),
+                func.coalesce(func.sum(StudentSubmission.total_questions), 0)
             )
             .join(Quiz, StudentSubmission.quiz_id == Quiz.id)
             .where(StudentSubmission.student_id == student_id, Quiz.document_id == document_id)
@@ -36,12 +37,24 @@ async def get_student_analytics(
     else:
         sub_stmt = select(
             func.count(StudentSubmission.id),
-            func.avg(StudentSubmission.percentage)
+            func.avg(StudentSubmission.percentage),
+            func.coalesce(func.sum(StudentSubmission.total_questions), 0)
         ).where(StudentSubmission.student_id == student_id)
         
     sub_res = await db.execute(sub_stmt)
-    total_quizzes, avg_score = sub_res.first() or (0, 0.0)
-    avg_score = round(avg_score or 0.0, 1)
+    sub_row = sub_res.first()
+    total_quizzes = sub_row[0] if sub_row else 0
+    avg_score = round(sub_row[1] or 0.0, 1) if (sub_row and sub_row[1] is not None) else 0.0
+    total_questions = int(sub_row[2]) if (sub_row and sub_row[2] is not None) else 0
+
+    # Streak calculation: distinct days with quiz submissions
+    streak_stmt = select(
+        func.count(func.distinct(cast(StudentSubmission.submitted_at, Date)))
+    ).where(StudentSubmission.student_id == student_id)
+    streak_res = await db.execute(streak_stmt)
+    streak_days = streak_res.scalar() or 0
+    if streak_days == 0 and total_docs > 0:
+        streak_days = 1
     
     # 3. Masteries join with Concepts
     m_stmt = (
@@ -97,6 +110,8 @@ async def get_student_analytics(
         total_documents=total_docs,
         total_quizzes_taken=total_quizzes or 0,
         average_score=avg_score,
+        total_questions_answered=total_questions,
+        streak_days=streak_days,
         weak_concepts=weak_concepts,
         strong_concepts=strong_concepts,
         recommended_revision_plan=plan

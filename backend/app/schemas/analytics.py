@@ -16,6 +16,8 @@ class StudentAnalyticsResponse(BaseModel):
     total_documents: int
     total_quizzes_taken: int
     average_score: float
+    total_questions_answered: int = 0
+    streak_days: int = 0
     weak_concepts: List[ConceptMasteryItem]
     strong_concepts: List[ConceptMasteryItem]
     recommended_revision_plan: List[str]

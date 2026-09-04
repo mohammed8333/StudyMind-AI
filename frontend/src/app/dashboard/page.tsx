@@ -97,16 +97,18 @@ export default function DashboardPage() {
     const savedTasks = localStorage.getItem("studymind_daily_tasks");
     if (savedTasks) {
       try {
-        setTasks(JSON.parse(savedTasks));
+        const parsed = JSON.parse(savedTasks);
+        // Clean out legacy default mock tasks if present
+        const cleaned = Array.isArray(parsed)
+          ? parsed.filter((t: DailyTask) => !["1", "2", "3"].includes(t.id))
+          : [];
+        setTasks(cleaned);
+        localStorage.setItem("studymind_daily_tasks", JSON.stringify(cleaned));
       } catch (e) {
-        // default fallback tasks
+        setTasks([]);
       }
     } else {
-      setTasks([
-        { id: "1", text: "حل كويز تجريبي على الفصل الأول", completed: true },
-        { id: "2", text: "مراجعة المفاهيم الضعيفة مع المدرس الذكي", completed: false },
-        { id: "3", text: "استخراج ملخص أهم قوانين المادة", completed: false },
-      ]);
+      setTasks([]);
     }
   }, []);
 
@@ -239,8 +241,12 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs font-bold text-slate-400">أيام المذاكرة المتتالية</p>
             <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-black text-slate-900">4</span>
-              <span className="text-xs font-bold text-amber-500">أيام 🔥</span>
+              <span className="text-2xl font-black text-slate-900">
+                {analytics?.streak_days ?? (documents.length > 0 ? 1 : 0)}
+              </span>
+              <span className="text-xs font-bold text-amber-500">
+                {(analytics?.streak_days ?? (documents.length > 0 ? 1 : 0)) > 0 ? "أيام 🔥" : "يوم"}
+              </span>
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
@@ -254,9 +260,29 @@ export default function DashboardPage() {
             <p className="text-xs font-bold text-slate-400">نسبة الإتقان العام</p>
             <div className="flex items-baseline gap-1.5 mt-1">
               <span className="text-2xl font-black text-slate-900">
-                {analytics?.average_score || 85}%
+                {analytics && analytics.total_quizzes_taken > 0
+                  ? `${Math.round(analytics.average_score)}%`
+                  : "0%"}
               </span>
-              <span className="text-xs font-bold text-emerald-600">ممتاز</span>
+              <span
+                className={`text-xs font-bold ${
+                  !analytics || analytics.total_quizzes_taken === 0
+                    ? "text-slate-400"
+                    : analytics.average_score >= 80
+                    ? "text-emerald-600"
+                    : analytics.average_score >= 60
+                    ? "text-amber-600"
+                    : "text-rose-600"
+                }`}
+              >
+                {!analytics || analytics.total_quizzes_taken === 0
+                  ? "جديد"
+                  : analytics.average_score >= 80
+                  ? "ممتاز"
+                  : analytics.average_score >= 60
+                  ? "جيد"
+                  : "يحتاج تدريب"}
+              </span>
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -270,7 +296,7 @@ export default function DashboardPage() {
             <p className="text-xs font-bold text-slate-400">أسئلة تم حلها</p>
             <div className="flex items-baseline gap-1.5 mt-1">
               <span className="text-2xl font-black text-slate-900">
-                {(analytics?.total_quizzes_taken || 0) * 5 + 12}
+                {analytics?.total_questions_answered ?? ((analytics?.total_quizzes_taken || 0) * 5)}
               </span>
               <span className="text-xs font-bold text-blue-600">سؤالاً</span>
             </div>
@@ -463,7 +489,9 @@ export default function DashboardPage() {
                 <div>
                   <h3 className="font-black text-slate-900 text-base">مهام وأهداف اليوم 📝</h3>
                   <p className="text-[11px] text-slate-400">
-                    أنجزت {completedCount} من {tasks.length} مهام ({taskProgress}%)
+                    {tasks.length > 0
+                      ? `أنجزت ${completedCount} من ${tasks.length} مهام (${taskProgress}%)`
+                      : "لا توجد مهام مضافة بعد"}
                   </p>
                 </div>
               </div>
