@@ -15,15 +15,14 @@ from app.schemas.document import (
     DocumentResponse,
     DocumentDetailResponse,
     DocumentChunkResponse,
+    DocumentStatusResponse,
     DocumentUpdate,
     DocumentDeleteResponse,
 )
 from app.api.deps import get_current_user
 from app.core.rate_limiter import check_upload_rate_limit
-from app.services.pdf_extractor import process_and_chunk_pdf
-from app.services.vector_store import get_embedding
-from app.services.file_validator import validate_uploaded_file
-from app.services.document_processor import document_processor
+from app.services.file_validator import stream_and_validate_upload
+from app.services.document_worker import document_worker
 
 logger = logging.getLogger(__name__)
 
@@ -39,100 +38,116 @@ async def upload_document(
     _rate_limit: None = Depends(check_upload_rate_limit)
 ):
     """
-    Upload a study document (PDF, DOCX, TXT, JPG, PNG), validate its signatures,
-    extract content, chunk, and index it into the Knowledge Base.
+    Asynchronous Document Upload:
+    Streams uploaded file directly to disk (preventing 50MB RAM buffering),
+    validates format/magic bytes, registers document in PENDING state,
+    enqueues it for background processing, and returns immediately.
     """
-    content = await file.read()
-    
-    # 1. Real Backend File Validation (Magic bytes, extension, MIME, size, path traversal)
-    safe_filename, file_type = validate_uploaded_file(
-        filename=file.filename,
-        content=content,
-        content_type=file.content_type
+    clean_title = title.strip()
+    if not clean_title:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="عنوان المستند لا يمكن أن يكون فارغاً."
+        )
+
+    # 1. Stream file directly to storage & validate signatures
+    safe_filename, unique_filename, file_path, file_type, total_size = await stream_and_validate_upload(
+        upload_file=file,
+        dest_dir=settings.UPLOAD_DIR
     )
-    
-    unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
-    file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
-    
-    # Save validated file to disk
-    async with aiofiles.open(file_path, 'wb') as out_file:
-        await out_file.write(content)
-        
-    # Create Document record with initial 'uploading' status
+
+    # 2. Create Document record in PENDING state
     doc = Document(
-        title=title,
-        subject=subject,
+        title=clean_title,
+        subject=subject.strip() if subject else None,
         filename=safe_filename,
         file_path=file_path,
         file_type=file_type,
-        file_size=len(content),
-        status="uploading",
+        file_size=total_size,
+        status="PENDING",
+        progress_percentage=0,
+        progress_stage="في قائمة الانتظار",
+        retry_count=0,
         owner_id=user.id
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
-    
-    # 2. Extract & Index document
-    try:
-        doc.status = "extracting"
-        await db.commit()
 
-        # Unified document processor handles PDF, DOCX, TXT, and Images
-        chunks, metadata = document_processor.process(file_path, file_type=file_type)
-        doc.total_pages = metadata.get("total_pages", 1)
-        
-        # 3. Indexing state
-        doc.status = "indexing"
-        await db.commit()
+    # 3. Queue processing job to background worker
+    await document_worker.enqueue_document(doc.id)
 
-        # Handle documents with no extractable text
-        if not chunks:
-            if metadata.get("ocr_errors"):
-                doc.status = "error"
-                doc.error_message = "فشل التعرف الضوئي على المستند: " + "; ".join(metadata["ocr_errors"][:2])
-            else:
-                doc.status = "ready"
-                doc.error_message = "المستند فارغ أو لا يحتوي على نصوص قابلة للقراءة."
-            await db.commit()
-            await db.refresh(doc)
-            return doc
-        
-        # Save chunks and embeddings
-        for c in chunks:
-            emb = await get_embedding(c["content"])
-            emb_json = json.dumps(emb)
-            
-            chunk_record = DocumentChunk(
-                document_id=doc.id,
-                page_number=c["page_number"],
-                chunk_index=c["chunk_index"],
-                chapter=c["chapter"],
-                source_type=c.get("source_type", file_type),
-                content=c["content"],
-                content_normalized=c["content_normalized"],
-                embedding_json=emb_json
-            )
-            db.add(chunk_record)
-            
-        doc.status = "ready"
-        if metadata.get("ocr_errors"):
-            doc.error_message = f"تمت الفهرسة مع ملاحظات OCR: {'; '.join(metadata['ocr_errors'][:2])}"
-        else:
-            doc.error_message = None
+    # 4. Return immediately without blocking HTTP connection
+    return doc
 
-        await db.commit()
-        await db.refresh(doc)
-    except Exception as e:
-        logger.error(f"Failed to process and index document {doc.id}: {e}", exc_info=True)
-        doc.status = "error"
-        doc.error_message = f"فشل في معالجة وفهرسة الملف: {str(e)}"
-        await db.commit()
+@router.get("/{document_id}/status", response_model=DocumentStatusResponse)
+async def get_document_status(
+    document_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get real-time document processing status, progress percentage, and current stage.
+    Protected against IDOR.
+    """
+    doc = await db.get(Document, document_id)
+    if not doc:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=doc.error_message
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود."
         )
-        
+    if doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية للوصول لهذا المستند."
+        )
+    return doc
+
+@router.post("/{document_id}/retry", response_model=DocumentResponse)
+async def retry_document_processing(
+    document_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retry processing a failed document.
+    Verifies ownership (IDOR), prevents duplicate execution if already active,
+    resets status to PENDING, and enqueues the document.
+    """
+    doc = await db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود."
+        )
+    if doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية لإعادة محاولة معالجة هذا المستند."
+        )
+
+    if doc.status.upper() == "READY":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="المستند جاهز ومكتمل بالفعل ولا يحتاج لإعادة المحاولة."
+        )
+
+    if document_id in document_worker._active_jobs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="المستند قيد المعالجة حالياً بالفعل في الخلفية."
+        )
+
+    # Reset state and enqueue
+    doc.status = "PENDING"
+    doc.progress_percentage = 0
+    doc.progress_stage = "في قائمة الانتظار (إعادة المحاولة)"
+    doc.error_message = None
+    doc.retry_count = (doc.retry_count or 0) + 1
+    await db.commit()
+    await db.refresh(doc)
+
+    await document_worker.enqueue_document(doc.id)
     return doc
 
 @router.get("/", response_model=List[DocumentResponse])

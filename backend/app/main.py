@@ -3,14 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db
+from app.services.document_worker import document_worker
 from app.api.v1 import auth, documents, tutor, quizzes, analytics
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize database tables
+    # Startup: initialize database tables and start async background workers
     await init_db()
+    await document_worker.start()
     yield
-    # Shutdown logic if needed
+    # Shutdown logic
+    await document_worker.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

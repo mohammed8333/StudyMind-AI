@@ -37,8 +37,13 @@ async def test_full_pipeline_study_cycle():
         assert upload_res.status_code == 201
         doc_data = upload_res.json()
         doc_id = doc_data["id"]
-        assert doc_data["status"] in ["ready", "indexed"]
-        assert doc_data["total_pages"] == 3
+
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_id, timeout=10.0)
+
+        status_res = await ac.get(f"/api/v1/documents/{doc_id}/status", headers=headers)
+        assert status_res.json()["status"].upper() == "READY"
+        assert status_res.json()["total_pages"] == 3
 
         # 3. Retrieve chunks with page tracking
         chunks_res = await ac.get(f"/api/v1/documents/{doc_id}/chunks", headers=headers)

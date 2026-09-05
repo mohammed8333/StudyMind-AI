@@ -22,8 +22,8 @@ engine = create_async_engine(
     db_url,
     echo=False,
     future=True,
-    # SQLite specific connection args if needed
-    connect_args={"check_same_thread": False} if is_sqlite else {}
+    # SQLite specific connection args with 30s timeout
+    connect_args={"check_same_thread": False, "timeout": 30.0} if is_sqlite else {}
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -46,10 +46,19 @@ async def init_db():
                     await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
                 except Exception as ext_err:
                     logger.warning(f"pgvector extension check failed (might already exist or not supported): {ext_err}")
+            else:
+                try:
+                    await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                    await conn.execute(text("PRAGMA busy_timeout=30000;"))
+                except Exception:
+                    pass
             await conn.run_sync(Base.metadata.create_all)
             for col_stmt in [
                 "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
-                "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';"
+                "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';",
+                "ALTER TABLE documents ADD COLUMN progress_percentage INTEGER DEFAULT 0;",
+                "ALTER TABLE documents ADD COLUMN progress_stage VARCHAR(100) DEFAULT 'في قائمة الانتظار';",
+                "ALTER TABLE documents ADD COLUMN retry_count INTEGER DEFAULT 0;"
             ]:
                 try:
                     await conn.execute(text(col_stmt))
@@ -65,7 +74,7 @@ async def init_db():
                 fallback_url,
                 echo=False,
                 future=True,
-                connect_args={"check_same_thread": False}
+                connect_args={"check_same_thread": False, "timeout": 30.0}
             )
             AsyncSessionLocal = async_sessionmaker(
                 bind=engine,
@@ -75,10 +84,18 @@ async def init_db():
                 autoflush=False
             )
             async with engine.begin() as conn:
+                try:
+                    await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                    await conn.execute(text("PRAGMA busy_timeout=30000;"))
+                except Exception:
+                    pass
                 await conn.run_sync(Base.metadata.create_all)
                 for col_stmt in [
                     "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
-                    "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';"
+                    "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';",
+                    "ALTER TABLE documents ADD COLUMN progress_percentage INTEGER DEFAULT 0;",
+                    "ALTER TABLE documents ADD COLUMN progress_stage VARCHAR(100) DEFAULT 'في قائمة الانتظار';",
+                    "ALTER TABLE documents ADD COLUMN retry_count INTEGER DEFAULT 0;"
                 ]:
                     try:
                         await conn.execute(text(col_stmt))

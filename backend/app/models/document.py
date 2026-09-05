@@ -14,7 +14,10 @@ class Document(Base):
     file_type = Column(String(50), default="pdf", nullable=True)  # pdf, docx, txt, image
     file_size = Column(Integer, default=0)
     total_pages = Column(Integer, default=0)
-    status = Column(String(50), default="processing")  # uploading, extracting, ocr, indexing, ready, error
+    status = Column(String(50), default="PENDING")  # PENDING, UPLOADING, PROCESSING, OCR, INDEXING, READY, FAILED
+    progress_percentage = Column(Integer, default=0, nullable=False)
+    progress_stage = Column(String(100), default="في قائمة الانتظار", nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

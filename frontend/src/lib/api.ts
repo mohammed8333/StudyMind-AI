@@ -166,6 +166,29 @@ export const api = {
       }
       return res.json();
     },
+
+    async getStatus(id: number) {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}/status`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل جلب حالة المستند");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async retry(id: number) {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}/retry`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إعادة محاولة معالجة المستند");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
   },
 
   tutor: {

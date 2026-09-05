@@ -119,6 +119,9 @@ async def test_idor_quiz_submit_rejected():
         assert upload_res.status_code == 201
         doc_a_id = upload_res.json()["id"]
 
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_a_id, timeout=10.0)
+
         # Insert a quiz record linked to doc_a
         async with AsyncSessionLocal() as db:
             quiz_a = Quiz(
@@ -160,6 +163,9 @@ async def test_idor_tutor_summary_and_chat_history_rejected():
         )
         doc_a_id = upload_res.json()["id"]
 
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_a_id, timeout=10.0)
+
         # Student B attempts to get AI summary of Student A's document
         summary_res = await ac.post(
             f"/api/v1/tutor/summary/{doc_a_id}",
@@ -199,6 +205,9 @@ async def test_idor_analytics_document_rejected():
             files={"file": ("analytics_doc.pdf", pdf_bytes, "application/pdf")}
         )
         doc_a_id = upload_res.json()["id"]
+
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_a_id, timeout=10.0)
 
         # Student B attempts to query document analytics for Student A's document
         analytics_res = await ac.get(

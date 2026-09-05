@@ -139,7 +139,9 @@ async def test_docx_upload_and_chunk_extraction():
         doc_data = res.json()
         doc_id = doc_data["id"]
         assert doc_data["file_type"] == "docx"
-        assert doc_data["status"] in ["ready", "indexed"]
+
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_id, timeout=10.0)
 
         # Fetch chunks to verify source_type and content extraction
         chunks_res = await ac.get(f"/api/v1/documents/{doc_id}/chunks", headers=headers)
@@ -177,6 +179,9 @@ async def test_txt_upload_and_chunk_extraction():
         doc_id = doc_data["id"]
         assert doc_data["file_type"] == "txt"
 
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_id, timeout=10.0)
+
         chunks_res = await ac.get(f"/api/v1/documents/{doc_id}/chunks", headers=headers)
         assert chunks_res.status_code == 200
         chunks = chunks_res.json()
@@ -208,5 +213,10 @@ async def test_image_upload_and_ocr_routing():
         )
         assert res.status_code == 201
         doc_data = res.json()
+        doc_id = doc_data["id"]
         assert doc_data["file_type"] == "image"
-        assert doc_data["status"] in ["ready", "indexed"]
+
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_id, timeout=15.0)
+        status_res = await ac.get(f"/api/v1/documents/{doc_id}/status", headers=headers)
+        assert status_res.json()["status"].upper() == "READY"

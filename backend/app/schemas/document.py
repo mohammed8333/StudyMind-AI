@@ -35,9 +35,23 @@ class DocumentResponse(DocumentBase):
     file_size: int
     total_pages: int
     status: str
+    progress_percentage: int = 0
+    progress_stage: Optional[str] = "في قائمة الانتظار"
+    retry_count: int = 0
     error_message: Optional[str] = None
     created_at: datetime
     
+    model_config = ConfigDict(from_attributes=True)
+
+class DocumentStatusResponse(BaseModel):
+    id: int
+    status: str
+    progress_percentage: int = 0
+    progress_stage: Optional[str] = "في قائمة الانتظار"
+    total_pages: int = 0
+    error_message: Optional[str] = None
+    retry_count: int = 0
+
     model_config = ConfigDict(from_attributes=True)
 
 class DocumentDetailResponse(DocumentResponse):

@@ -102,6 +102,9 @@ async def test_document_delete_and_idor():
         assert upload_res.status_code == 201
         doc_id = upload_res.json()["id"]
 
+        from app.services.document_worker import document_worker
+        await document_worker.wait_for_document(doc_id, timeout=10.0)
+
         # Verify document and chunks exist
         chunks_res = await ac.get(f"/api/v1/documents/{doc_id}/chunks", headers=headers_a)
         assert chunks_res.status_code == 200
