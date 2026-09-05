@@ -4,7 +4,9 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   BookOpen,
+  Edit3,
   FileUp,
   Filter,
   GraduationCap,
@@ -14,6 +16,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Trash2,
   X
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -80,6 +83,80 @@ export default function LibraryPage() {
       alert(err.message || "فشل رفع الملف");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Delete modal state
+  const [docToDelete, setDocToDelete] = useState<DocumentItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Rename modal state
+  const [docToRename, setDocToRename] = useState<DocumentItem | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [renameSubject, setRenameSubject] = useState("الفيزياء");
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const openDeleteModal = (doc: DocumentItem, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setDocToDelete(doc);
+    setDeleteError(null);
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!docToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.documents.delete(docToDelete.id);
+      // In-place update without reload
+      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
+      setDocToDelete(null);
+    } catch (err: any) {
+      setDeleteError(err.message || "فشل حذف المستند");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openRenameModal = (doc: DocumentItem, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setDocToRename(doc);
+    setRenameTitle(doc.title);
+    setRenameSubject(doc.subject || "الفيزياء");
+    setRenameError(null);
+  };
+
+  const handleRenameDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docToRename || !renameTitle.trim()) return;
+    setIsRenaming(true);
+    setRenameError(null);
+    try {
+      const updated = await api.documents.update(docToRename.id, {
+        title: renameTitle.trim(),
+        subject: renameSubject.trim(),
+      });
+      // In-place update without reload
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === docToRename.id
+            ? { ...d, title: updated.title, subject: updated.subject }
+            : d
+        )
+      );
+      setDocToRename(null);
+    } catch (err: any) {
+      setRenameError(err.message || "فشل تعديل اسم المستند");
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -286,6 +363,24 @@ export default function LibraryPage() {
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>شات</span>
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={(e) => openRenameModal(doc, e)}
+                  title="تعديل اسم المذكرة"
+                  className="p-2.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-colors shrink-0"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => openDeleteModal(doc, e)}
+                  title="حذف المذكرة"
+                  className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
@@ -378,6 +473,163 @@ export default function LibraryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Modal */}
+      {docToRename && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">تعديل المذكرة</h3>
+                  <p className="text-xs text-slate-400">تحديث عنوان المادة أو التصنيف</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDocToRename(null)}
+                disabled={isRenaming}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {renameError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{renameError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleRenameDocument} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">عنوان المذكرة الجديد</label>
+                <input
+                  type="text"
+                  required
+                  value={renameTitle}
+                  onChange={(e) => setRenameTitle(e.target.value)}
+                  placeholder="مثال: مذكرة الفيزياء الحديثة"
+                  className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  disabled={isRenaming}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">المادة الدراسية</label>
+                <select
+                  value={renameSubject}
+                  onChange={(e) => setRenameSubject(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  disabled={isRenaming}
+                >
+                  <option value="الفيزياء">الفيزياء</option>
+                  <option value="الكيمياء">الكيمياء</option>
+                  <option value="الأحياء">الأحياء</option>
+                  <option value="اللغة العربية">اللغة العربية</option>
+                  <option value="الرياضيات">الرياضيات</option>
+                  <option value="البرمجة">البرمجة</option>
+                  <option value="التاريخ">التاريخ</option>
+                  <option value="الجغرافيا">الجغرافيا</option>
+                  <option value="اللغة الإنجليزية">اللغة الإنجليزية</option>
+                  <option value="أخرى">مادة أخرى</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={isRenaming || !renameTitle.trim()}
+                  className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isRenaming ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>جاري الحفظ...</span>
+                    </>
+                  ) : (
+                    <span>حفظ التعديلات</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocToRename(null)}
+                  disabled={isRenaming}
+                  className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 text-xs font-bold rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {docToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">تأكيد حذف المذكرة</h3>
+                <p className="text-xs text-slate-500">هذا الإجراء لا يمكن التراجع عنه</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-4">
+              <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                هل أنت متأكد من حذف مذكرة <strong className="text-slate-900 font-bold">"{docToDelete.title}"</strong>؟
+              </p>
+              <p className="text-[11px] text-red-500 mt-2 flex items-center gap-1 font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                سيتم حذف كافة الأسئلة، الاختبارات، والمفاهيم المرتبطة بها نهائيًا.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteDocument}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>جاري الحذف...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>نعم، احذف المذكرة</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 text-xs font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
           </div>
         </div>
       )}

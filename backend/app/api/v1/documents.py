@@ -8,12 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
 from app.core.config import settings
+import logging
 from app.models.user import User
 from app.models.document import Document, DocumentChunk
-from app.schemas.document import DocumentResponse, DocumentDetailResponse, DocumentChunkResponse
+from app.schemas.document import (
+    DocumentResponse,
+    DocumentDetailResponse,
+    DocumentChunkResponse,
+    DocumentUpdate,
+    DocumentDeleteResponse,
+)
 from app.api.deps import get_current_user
 from app.services.pdf_extractor import process_and_chunk_pdf
 from app.services.vector_store import get_embedding
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -152,3 +161,87 @@ async def get_document_chunks(
     
     res = await db.execute(stmt)
     return res.scalars().all()
+
+@router.patch("/{document_id}", response_model=DocumentResponse)
+async def update_document(
+    document_id: int,
+    doc_in: DocumentUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update / Rename a study document (title, subject).
+    Verifies that the current student owns the document (IDOR Protection).
+    """
+    doc = await db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود."
+        )
+        
+    if doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية لتعديل هذا المستند."
+        )
+        
+    if doc_in.title is not None:
+        clean_title = doc_in.title.strip()
+        if not clean_title:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="عنوان المستند لا يمكن أن يكون فارغاً."
+            )
+        doc.title = clean_title
+        
+    if doc_in.subject is not None:
+        doc.subject = doc_in.subject.strip() or None
+        
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+@router.delete("/{document_id}", response_model=DocumentDeleteResponse)
+async def delete_document(
+    document_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a study document, all associated chunks, concepts, quizzes, and the physical PDF file.
+    Verifies that the current student owns the document (IDOR Protection).
+    Handles non-existent physical files gracefully without crashing.
+    """
+    doc = await db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود."
+        )
+        
+    if doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية لحذف هذا المستند."
+        )
+        
+    # Safe physical storage removal
+    if doc.file_path:
+        try:
+            if os.path.exists(doc.file_path):
+                os.remove(doc.file_path)
+                logger.info(f"Physical file removed successfully: {doc.file_path}")
+            else:
+                logger.warning(f"File path does not exist on disk during deletion: {doc.file_path}")
+        except Exception as e:
+            logger.error(f"Error while removing physical file {doc.file_path}: {e}")
+            
+    # Delete from database (cascades to chunks, concepts, quizzes, submissions)
+    await db.delete(doc)
+    await db.commit()
+    
+    return DocumentDeleteResponse(
+        message="تم حذف المستند وجميع محتوياته بنجاح.",
+        document_id=document_id
+    )

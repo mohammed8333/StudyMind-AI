@@ -9,6 +9,14 @@ class DocumentBase(BaseModel):
 class DocumentCreate(DocumentBase):
     pass
 
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    subject: Optional[str] = None
+
+class DocumentDeleteResponse(BaseModel):
+    message: str
+    document_id: int
+
 class DocumentChunkResponse(BaseModel):
     id: int
     page_number: int

@@ -138,6 +138,34 @@ export const api = {
       if (!res.ok) throw new Error("فشل جلب أجزاء المستند");
       return res.json();
     },
+
+    async update(id: number, data: { title?: string; subject?: string }) {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تعديل المستند");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async delete(id: number) {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل حذف المستند");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
   },
 
   tutor: {
