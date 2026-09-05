@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db
 from app.services.document_worker import document_worker
-from app.api.v1 import auth, documents, tutor, quizzes, analytics, learning, planner, flashcards
+from app.api.v1 import auth, documents, tutor, quizzes, analytics, learning, planner, flashcards, exams
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,6 +45,7 @@ app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", 
 app.include_router(learning.router, prefix=f"{settings.API_V1_STR}/learning", tags=["التعلم التكيفي والجلسات العلاجية (Adaptive Learning)"])
 app.include_router(planner.router, prefix=f"{settings.API_V1_STR}/planner", tags=["المخطط الدراسي الذكي (Study Planner)"])
 app.include_router(flashcards.router, prefix=f"{settings.API_V1_STR}/flashcards", tags=["البطاقات التعليمية والتكرار المتباعد (Flashcards)"])
+app.include_router(exams.router, prefix=f"{settings.API_V1_STR}/exams", tags=["محاكي الامتحانات (Exam Simulator)"])
 
 @app.get("/", tags=["الحالة (Health)"])
 async def root():

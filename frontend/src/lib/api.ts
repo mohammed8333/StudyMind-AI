@@ -632,6 +632,103 @@ export const api = {
       return res.json();
     },
   },
+
+  exams: {
+    async generate(data: {
+      document_id: number;
+      title?: string;
+      subject?: string;
+      chapters?: string[];
+      num_questions?: number;
+      difficulty?: string;
+      duration_minutes?: number;
+      question_types?: string[];
+      is_mock_mode?: boolean;
+    }): Promise<Exam> {
+      const res = await fetch(`${API_BASE_URL}/exams/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إنشاء الامتحان");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async list(documentId?: number): Promise<Exam[]> {
+      const url = new URL(`${API_BASE_URL}/exams/`);
+      if (documentId) url.searchParams.append("document_id", documentId.toString());
+      const res = await fetch(url.toString(), {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب قائمة الامتحانات");
+      return res.json();
+    },
+
+    async get(examId: number): Promise<Exam> {
+      const res = await fetch(`${API_BASE_URL}/exams/${examId}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("الامتحان غير موجود");
+      return res.json();
+    },
+
+    async start(examId: number): Promise<ExamAttemptStartResponse> {
+      const res = await fetch(`${API_BASE_URL}/exams/${examId}/start`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل بدء الامتحان");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async submit(
+      examId: number,
+      attemptId: number,
+      data: {
+        answers: { question_id: number; student_answer: string; time_spent_seconds?: number }[];
+        total_time_taken_seconds?: number;
+      }
+    ): Promise<ExamResultResponse> {
+      const res = await fetch(`${API_BASE_URL}/exams/${examId}/attempts/${attemptId}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تسليم الامتحان");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async getAttemptResult(examId: number, attemptId: number): Promise<ExamResultResponse> {
+      const res = await fetch(`${API_BASE_URL}/exams/${examId}/attempts/${attemptId}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب تفاصيل نتيجة المحاولة");
+      return res.json();
+    },
+
+    async getMyHistory(): Promise<ExamHistoryItem[]> {
+      const res = await fetch(`${API_BASE_URL}/exams/history/my`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب سجل الامتحانات");
+      return res.json();
+    },
+  },
 };
 
 export interface Flashcard {
@@ -750,4 +847,118 @@ export interface CalendarDayTasks {
   is_overdue: boolean;
   tasks: StudyPlanTask[];
 }
+
+export interface ExamQuestion {
+  id: number;
+  question_type: "mcq" | "true_false" | "short_answer";
+  question_text: string;
+  options?: string[] | null;
+  marks: number;
+  source_page?: number | null;
+  order_index: number;
+}
+
+export interface Exam {
+  id: number;
+  title: string;
+  document_id: number;
+  document_title?: string | null;
+  subject?: string | null;
+  chapters: string[];
+  difficulty: string;
+  duration_minutes: number;
+  total_questions: number;
+  total_marks: number;
+  passing_score_pct: number;
+  is_mock_mode: boolean;
+  created_at: string;
+  questions: ExamQuestion[];
+}
+
+export interface ExamAttemptStartResponse {
+  attempt_id: number;
+  exam_id: number;
+  exam_title: string;
+  attempt_number: number;
+  started_at: string;
+  expires_at: string;
+  remaining_seconds: number;
+  is_mock_mode: boolean;
+  total_questions: number;
+  total_marks: number;
+  duration_minutes: number;
+  questions: ExamQuestion[];
+}
+
+export interface ExamQuestionResultItem {
+  question_id: number;
+  question_type: string;
+  question_text: string;
+  student_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+  score_awarded: number;
+  max_marks: number;
+  time_spent_seconds: number;
+  explanation: string;
+  source_page?: number | null;
+  concept_name?: string | null;
+  error_type?: string | null;
+  error_reason?: string | null;
+  ai_feedback?: string | null;
+}
+
+export interface WeakConceptItem {
+  concept_name: string;
+  questions_missed: number;
+  source_page?: number | null;
+}
+
+export interface RemedialRecommendationItem {
+  title: string;
+  concept_name: string;
+  source_page?: number | null;
+  recommended_action: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface ExamResultResponse {
+  attempt_id: number;
+  exam_id: number;
+  exam_title: string;
+  attempt_number: number;
+  status: "SUBMITTED" | "TIMED_OUT";
+  score: number;
+  total_marks: number;
+  percentage: number;
+  passed: boolean;
+  time_taken_seconds: number;
+  correct_count: number;
+  wrong_count: number;
+  unanswered_count: number;
+  avg_time_per_question_seconds: number;
+  weak_concepts: WeakConceptItem[];
+  remedial_recommendations: RemedialRecommendationItem[];
+  summary_feedback: string;
+  questions_feedback: ExamQuestionResultItem[];
+}
+
+export interface ExamHistoryItem {
+  attempt_id: number;
+  exam_id: number;
+  exam_title: string;
+  document_id: number;
+  document_title: string;
+  subject?: string | null;
+  attempt_number: number;
+  score: number;
+  total_marks: number;
+  percentage: number;
+  passed: boolean;
+  time_taken_seconds: number;
+  status: string;
+  is_mock_mode: boolean;
+  submitted_at: string;
+}
+
 

@@ -26,6 +26,7 @@ import {
   RotateCcw,
   Sparkles,
   Target,
+  Timer,
   Trash2,
   TrendingUp,
   X,
@@ -124,6 +125,17 @@ export default function MaterialDashboardPage() {
   const [quizNumQuestions, setQuizNumQuestions] = useState(5);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [quizError, setQuizError] = useState("");
+
+  // Exam Generator state (AI Exam Simulator)
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [examTitle, setExamTitle] = useState("");
+  const [examNumQuestions, setExamNumQuestions] = useState<number>(10);
+  const [examDuration, setExamDuration] = useState<number>(30);
+  const [examDifficulty, setExamDifficulty] = useState<string>("medium");
+  const [examTypes, setExamTypes] = useState<string[]>(["mcq", "true_false", "short_answer"]);
+  const [examIsMock, setExamIsMock] = useState<boolean>(false);
+  const [isGeneratingExam, setIsGeneratingExam] = useState(false);
+  const [examError, setExamError] = useState("");
 
   // Rename & Delete state
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -297,6 +309,37 @@ export default function MaterialDashboardPage() {
     }
   };
 
+  const handleGenerateExam = async () => {
+    if (!docId) return;
+    setIsGeneratingExam(true);
+    setExamError("");
+    try {
+      const newExam = await api.exams.generate({
+        document_id: docId,
+        title: examTitle.trim() || `امتحان ${documentData?.subject || documentData?.title || "المادة"}`,
+        num_questions: examNumQuestions,
+        difficulty: examDifficulty,
+        duration_minutes: examDuration,
+        question_types: examTypes.length > 0 ? examTypes : ["mcq", "true_false", "short_answer"],
+        is_mock_mode: examIsMock,
+      });
+      router.push(`/exams/${newExam.id}`);
+    } catch (err: any) {
+      setExamError(err.message || "فشل توليد الامتحان. حاول مرة أخرى.");
+      setIsGeneratingExam(false);
+    }
+  };
+
+  const toggleExamType = (type: string) => {
+    setExamTypes(prev => {
+      if (prev.includes(type)) {
+        if (prev.length === 1) return prev; // keep at least one
+        return prev.filter(t => t !== type);
+      }
+      return [...prev, type];
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
@@ -385,29 +428,29 @@ export default function MaterialDashboardPage() {
         </div>
       </div>
 
-      {/* The 4 Core Action Buttons */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* The 5 Core Action Buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* 1. زرار للشات (المدرس الذكي) */}
         <Link
           href={`/study/${docId}`}
-          className="group p-6 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+          className="group p-5 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
         >
           <div className="flex items-start justify-between">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
-              <MessageSquare className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <MessageSquare className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+            <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
               محادثة ذكية 💬
             </span>
           </div>
-          <div className="mt-6">
-            <h3 className="text-lg font-bold">المدرس الذكي (الشات)</h3>
+          <div className="mt-5">
+            <h3 className="text-base font-bold">المدرس الذكي</h3>
             <p className="text-xs text-blue-100 mt-1 leading-relaxed">
-              اسأل المعلم عن أي جزئية، وحدد مستوى التبسيط، مع مراجع موثقة من الكتاب.
+              اسأل المعلم عن أي جزئية، وحدد مستوى التبسيط، مع مراجع موثقة.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90">
-            <span>ابدأ المحادثة الآن</span>
+            <span>ابدأ المحادثة</span>
             <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           </div>
         </Link>
@@ -415,20 +458,20 @@ export default function MaterialDashboardPage() {
         {/* 2. زرار للـ Quiz */}
         <button
           onClick={() => setShowQuizModal(true)}
-          className="group text-right p-6 bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+          className="group text-right p-5 bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
         >
           <div className="flex items-start justify-between">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
-              <PlayCircle className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <PlayCircle className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+            <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
               اختبار فوري 📝
             </span>
           </div>
-          <div className="mt-6">
-            <h3 className="text-lg font-bold">بدء اختبار (Quiz)</h3>
+          <div className="mt-5">
+            <h3 className="text-base font-bold">بدء كويز (Quiz)</h3>
             <p className="text-xs text-emerald-100 mt-1 leading-relaxed">
-              توليد كويز اختياري ذكي من مذكرتك مع تصحيح فوري وتحديث لنقاط القوة والضعف.
+              كويز اختياري فوري من مذكرتك مع تصحيح ذكي وتحديث نقاط القوة.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90 w-full">
@@ -437,27 +480,32 @@ export default function MaterialDashboardPage() {
           </div>
         </button>
 
-        {/* 3. زرار للتلخيص */}
+        {/* 3. زرار محاكي الامتحانات (AI Exam Simulator) */}
         <button
-          onClick={handleOpenSummary}
-          className="group text-right p-6 bg-gradient-to-br from-purple-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+          onClick={() => {
+            if (!examTitle && documentData) {
+              setExamTitle(`امتحان ${documentData.subject || documentData.title}`);
+            }
+            setShowExamModal(true);
+          }}
+          className="group text-right p-5 bg-gradient-to-br from-rose-600 via-pink-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden ring-2 ring-rose-300/40"
         >
           <div className="flex items-start justify-between">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
-              <FileText className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <Award className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
-              ملخص المادة 📑
+            <span className="text-[10px] font-bold bg-white/25 px-2.5 py-1 rounded-full backdrop-blur-sm">
+              محاكي امتحانات ⏱️
             </span>
           </div>
-          <div className="mt-6">
-            <h3 className="text-lg font-bold">تلخيص شامل للمادة</h3>
-            <p className="text-xs text-purple-100 mt-1 leading-relaxed">
-              استخراج الفكرة العامة، أهم المفاهيم والقوانين، وملاحظات الامتحان بنص منظم.
+          <div className="mt-5">
+            <h3 className="text-base font-bold">محاكي الامتحانات (Exam)</h3>
+            <p className="text-xs text-rose-100 mt-1 leading-relaxed">
+              محاكاة امتحان حقيقي بتايمر وتصحيح ذكي شامل وتوصيات علاجية.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90 w-full">
-            <span>عرض الملخص الذكي</span>
+            <span>توليد امتحان رسمي</span>
             <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           </div>
         </button>
@@ -465,27 +513,52 @@ export default function MaterialDashboardPage() {
         {/* 4. زرار بطاقات التكرار المتباعد (Flashcards) */}
         <Link
           href={`/flashcards?document_id=${docId}`}
-          className="group p-6 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+          className="group p-5 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
         >
           <div className="flex items-start justify-between">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
-              <Layers className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <Layers className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+            <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
               تكرار متباعد 🎴
             </span>
           </div>
-          <div className="mt-6">
-            <h3 className="text-lg font-bold">بطاقات الحفظ (Flashcards)</h3>
+          <div className="mt-5">
+            <h3 className="text-base font-bold">بطاقات الحفظ</h3>
             <p className="text-xs text-amber-100 mt-1 leading-relaxed">
-              تثبيت المفاهيم بخوارزمية SM-2 مع أولوية تلقائية ومراجعة مضاعفة لنقاط الضعف.
+              تثبيت المفاهيم بخوارزمية SM-2 مع مراجعة مضاعفة لنقاط الضعف.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90">
-            <span>استعراض ومراجعة البطاقات</span>
+            <span>استعراض البطاقات</span>
             <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           </div>
         </Link>
+
+        {/* 5. زرار للتلخيص */}
+        <button
+          onClick={handleOpenSummary}
+          className="group text-right p-5 bg-gradient-to-br from-purple-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+        >
+          <div className="flex items-start justify-between">
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <FileText className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+              ملخص المادة 📑
+            </span>
+          </div>
+          <div className="mt-5">
+            <h3 className="text-base font-bold">تلخيص شامل</h3>
+            <p className="text-xs text-purple-100 mt-1 leading-relaxed">
+              الفكرة العامة، أهم المفاهيم والقوانين وملاحظات الامتحان.
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90 w-full">
+            <span>عرض الملخص</span>
+            <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          </div>
+        </button>
       </div>
 
       {/* Quick Summary Metrics */}
@@ -822,6 +895,221 @@ export default function MaterialDashboardPage() {
                 >
                   إلغاء
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive AI Exam Simulator Generator Modal */}
+      {showExamModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-inner">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base flex items-center gap-1.5">
+                    <span>محاكي الامتحانات الذكي</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                      Exam Simulator ⏱️
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    توليد امتحان رسمي موثق من المذكرة مع تايمر حقيقي وتصحيح فوري
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExamModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {examError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{examError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4 text-xs">
+              {/* Exam Title */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">عنوان الامتحان</label>
+                <input
+                  type="text"
+                  value={examTitle}
+                  onChange={(e) => setExamTitle(e.target.value)}
+                  placeholder={`امتحان ${documentData?.subject || documentData?.title || "المادة"}`}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs text-slate-800 font-medium"
+                />
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">مستوى الصعوبة</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "easy", label: "سهل ومباشر" },
+                    { id: "medium", label: "متوسط المنهج" },
+                    { id: "hard", label: "متقدم وتحدي" },
+                  ].map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setExamDifficulty(lvl.id)}
+                      className={`py-2 rounded-xl border font-bold transition-all ${
+                        examDifficulty === lvl.id
+                          ? "bg-rose-50 border-rose-500 text-rose-800 ring-2 ring-rose-500/20"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Number of Questions & Duration */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">عدد الأسئلة</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[5, 10, 15, 20].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setExamNumQuestions(num)}
+                        className={`py-2 rounded-xl border font-bold text-center transition-all ${
+                          examNumQuestions === num
+                            ? "bg-rose-50 border-rose-500 text-rose-800 ring-2 ring-rose-500/20"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">مدة الامتحان</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[15, 30, 45, 60].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => setExamDuration(mins)}
+                        className={`py-2 rounded-xl border font-bold text-center transition-all ${
+                          examDuration === mins
+                            ? "bg-rose-50 border-rose-500 text-rose-800 ring-2 ring-rose-500/20"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                        title={`${mins} دقيقة`}
+                      >
+                        {mins}د
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Question Types */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">أنماط الأسئلة المتضمنة</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "mcq", label: "اختيار من متعدد" },
+                    { id: "true_false", label: "صح وخطأ" },
+                    { id: "short_answer", label: "مقالي قصير" },
+                  ].map((t) => {
+                    const isSelected = examTypes.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => toggleExamType(t.id)}
+                        className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 ${
+                          isSelected
+                            ? "bg-rose-50 border-rose-500 text-rose-800 ring-1 ring-rose-500/30"
+                            : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                        <span>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mock Exam Mode Toggle */}
+              <div
+                onClick={() => setExamIsMock(!examIsMock)}
+                className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                  examIsMock
+                    ? "bg-amber-50/80 border-amber-300 text-amber-950"
+                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${examIsMock ? "bg-amber-200 text-amber-800" : "bg-white text-slate-400"}`}>
+                    <Timer className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs">وضع المحاكاة الرسمية (Mock Exam Mode)</h4>
+                    <p className="text-[11px] text-slate-500">تسليم تلقائي حاسم عند انتهاء التايمر وبدون مؤشرات مساعدة</p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${examIsMock ? "bg-amber-600 border-amber-600 text-white" : "border-slate-300 bg-white"}`}>
+                  {examIsMock && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </div>
+              </div>
+
+              {/* Submit / Cancel Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateExam}
+                  disabled={isGeneratingExam}
+                  className="flex-1 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isGeneratingExam ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>جاري صياغة الامتحان من المذكرة...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Award className="w-4 h-4" />
+                      <span>بدء محاكاة الامتحان الآن</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExamModal(false)}
+                  disabled={isGeneratingExam}
+                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+
+              {/* View all exams link */}
+              <div className="text-center pt-1">
+                <Link
+                  href="/exams"
+                  className="text-[11px] font-bold text-slate-500 hover:text-rose-600 inline-flex items-center gap-1"
+                >
+                  <span>استعراض كافة الامتحانات وسجل المحاولات</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ from app.models.mastery import Concept, StudentMastery, RemedialSession
 from app.models.study_plan import StudyPlan, StudyPlanTask
 from app.models.flashcard import Flashcard, FlashcardReviewLog
 from app.models.chat import ChatMessage
+from app.models.exam import Exam, ExamQuestion, ExamAttempt, ExamQuestionResponse
 
 __all__ = [
     "Base",
@@ -24,5 +25,9 @@ __all__ = [
     "Flashcard",
     "FlashcardReviewLog",
     "ChatMessage",
+    "Exam",
+    "ExamQuestion",
+    "ExamAttempt",
+    "ExamQuestionResponse",
 ]
 

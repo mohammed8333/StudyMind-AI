@@ -27,6 +27,7 @@ class Document(Base):
     concepts = relationship("Concept", back_populates="document", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="document", cascade="all, delete-orphan")
     flashcards = relationship("Flashcard", back_populates="document", cascade="all, delete-orphan")
+    exams = relationship("Exam", back_populates="document", cascade="all, delete-orphan")
 
 
 class DocumentChunk(Base):

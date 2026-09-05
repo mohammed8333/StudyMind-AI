@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  Award,
   BookOpen,
   BrainCircuit,
   CalendarDays,
@@ -67,12 +68,13 @@ export default function Navbar() {
   const navLinks = [
     { href: "/dashboard", label: "لوحة المتابعة", icon: LayoutDashboard },
     { href: "/planner", label: "جدول المذاكرة الذكي", icon: CalendarDays },
+    { href: "/exams", label: "محاكي الامتحانات", icon: Award },
     { href: "/flashcards", label: "البطاقات الذكية", icon: Layers },
     { href: "/library", label: "المكتبة والمذكرات", icon: BookOpen },
     { href: "/quizzes", label: "الاختبارات", icon: GraduationCap },
   ];
 
-  const isStudyOrQuizRoom = pathname.startsWith("/study") || pathname.startsWith("/quiz");
+  const isStudyOrQuizRoom = pathname.startsWith("/study") || pathname.startsWith("/quiz") || Boolean(pathname.match(/^\/exams\/\d+/));
 
   return (
     <>
