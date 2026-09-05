@@ -28,6 +28,7 @@ interface DocumentItem {
   filename: string;
   total_pages: number;
   status: string;
+  error_message?: string;
   created_at?: string;
 }
 
@@ -331,10 +332,32 @@ export default function LibraryPage() {
             >
               <Link href={`/material/${doc.id}`} className="block">
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <span className="text-[11px] font-bold px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full">
-                    {doc.subject || "مادة عامة"}
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-bold px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full">
+                      {doc.subject || "مادة عامة"}
+                    </span>
+                    {doc.status === "ready" || doc.status === "indexed" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200/60">
+                        جاهز للدراسة ✓
+                      </span>
+                    ) : doc.status === "ocr" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200/60 animate-pulse">
+                        التعرف الضوئي OCR...
+                      </span>
+                    ) : doc.status === "error" ? (
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 bg-red-50 text-red-700 rounded-full border border-red-200/60"
+                        title={doc.error_message || "حدث خطأ أثناء المعالجة"}
+                      >
+                        تنبيه ⚠️
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200/60 animate-pulse">
+                        جاري الفهرسة...
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono shrink-0">
                     {doc.total_pages} صفحة
                   </span>
                 </div>
@@ -342,9 +365,16 @@ export default function LibraryPage() {
                 <h3 className="font-bold text-slate-900 text-base mb-1.5 line-clamp-1 group-hover:text-brand-600 transition-colors">
                   {doc.title}
                 </h3>
-                <p className="text-xs text-slate-400 mb-5 line-clamp-1">
+                <p className="text-xs text-slate-400 mb-2 line-clamp-1">
                   ملف: {doc.filename}
                 </p>
+
+                {doc.status === "error" && doc.error_message && (
+                  <p className="text-[11px] text-red-600 bg-red-50 p-2 rounded-xl mb-3 border border-red-100 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                    <span className="line-clamp-1">{doc.error_message}</span>
+                  </p>
+                )}
               </Link>
 
               <div className="pt-4 border-t border-slate-100 flex items-center gap-2">
@@ -447,6 +477,27 @@ export default function LibraryPage() {
                   className="w-full text-xs text-slate-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
                 />
               </div>
+
+              {isUploading && (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600" />
+                      جاري المعالجة والتعرف الضوئي (OCR)...
+                    </span>
+                    <span className="text-[11px] font-mono text-brand-600">Smart OCR & RAG</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 pt-1 text-[10px] text-center font-bold">
+                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">1. رفع الملف</span>
+                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">2. فحص النص</span>
+                    <span className="py-1 px-1 bg-blue-100 text-blue-800 rounded-lg">3. OCR ذكي</span>
+                    <span className="py-1 px-1 bg-emerald-100 text-emerald-800 rounded-lg">4. الفهرسة</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-center">
+                    يتم تطبيق OCR تلقائياً وبشكل انتقائي على الصفحات الممسوحة ضوئياً فقط.
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                 <button

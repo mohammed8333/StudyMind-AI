@@ -1,3 +1,4 @@
+import unicodedata
 import re
 from typing import List, Dict, Any, Optional
 
@@ -54,6 +55,51 @@ def normalize_arabic(text: str, remove_accents: bool = True) -> str:
     # Clean redundant whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     return text
+
+def normalize_ocr_arabic_text(text: str, preserve_tashkeel: bool = True) -> str:
+    """
+    Post-OCR normalization for Arabic and mixed Arabic/English text:
+    - Normalizes Unicode presentation forms via NFKC (combining characters, ligatures)
+    - Strips OCR control characters, zero-width spaces, directional marks (\u200B-\u200F, \uFEFF)
+    - Removes Tatweel / Kashida (ـ)
+    - Unifies forms of Alef (إ, أ, آ, ٱ -> ا)
+    - Preserves Tashkeel / Harakat when preserve_tashkeel=True (protects grammatical and contextual meaning)
+    - Normalizes common punctuation and OCR quotes
+    - Cleans redundant spacing while preserving structural paragraph breaks
+    """
+    if not text:
+        return ""
+
+    # 1. Unicode NFKC normalization
+    text = unicodedata.normalize('NFKC', text)
+
+    # 2. Remove zero-width spaces, joiners, and directional formatting marks
+    text = re.sub(r'[\u200B-\u200F\uFEFF]', '', text)
+
+    # 3. Remove Tatweel / Kashida
+    text = remove_tatweel(text)
+
+    # 4. Normalize Alef variants
+    text = re.sub(r'[إأآٱ]', 'ا', text)
+
+    # 5. Optionally remove or preserve Tashkeel
+    if not preserve_tashkeel:
+        text = remove_tashkeel(text)
+
+    # 6. Normalize common punctuation and OCR quotes
+    text = text.replace('«', '"').replace('»', '"')
+    text = text.replace('“', '"').replace('”', '"')
+    text = text.replace('—', '-').replace('–', '-')
+
+    # 7. Clean whitespace per line while preserving structural linebreaks
+    lines = text.splitlines()
+    cleaned_lines = []
+    for line in lines:
+        cleaned = re.sub(r'[ \t]+', ' ', line).strip()
+        if cleaned:
+            cleaned_lines.append(cleaned)
+
+    return "\n".join(cleaned_lines)
 
 def detect_heading(line: str) -> Optional[str]:
     """Detects if a line is a structural curriculum heading."""

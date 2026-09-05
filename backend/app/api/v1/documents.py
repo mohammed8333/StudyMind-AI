@@ -52,14 +52,14 @@ async def upload_document(
         file_size = len(content)
         await out_file.write(content)
         
-    # Create Document record
+    # Create Document record with initial 'uploading' status
     doc = Document(
         title=title,
         subject=subject,
         filename=file.filename,
         file_path=file_path,
         file_size=file_size,
-        status="processing",
+        status="uploading",
         owner_id=user.id
     )
     db.add(doc)
@@ -68,8 +68,28 @@ async def upload_document(
     
     # Process PDF and generate chunks
     try:
+        doc.status = "extracting"
+        await db.commit()
+
+        # Extract text page-by-page (selective OCR triggers if needed)
         chunks, metadata = process_and_chunk_pdf(file_path)
         doc.total_pages = metadata.get("total_pages", 1)
+        
+        # 3. Indexing state
+        doc.status = "indexing"
+        await db.commit()
+
+        # Handle documents with no extractable text
+        if not chunks:
+            if metadata.get("ocr_errors"):
+                doc.status = "error"
+                doc.error_message = "فشل التعرف الضوئي على المستند: " + "; ".join(metadata["ocr_errors"][:2])
+            else:
+                doc.status = "ready"
+                doc.error_message = "المستند فارغ أو لا يحتوي على نصوص قابلة للقراءة."
+            await db.commit()
+            await db.refresh(doc)
+            return doc
         
         # Save chunks and embeddings
         for c in chunks:
@@ -88,16 +108,22 @@ async def upload_document(
             )
             db.add(chunk_record)
             
-        doc.status = "indexed"
+        doc.status = "ready"
+        if metadata.get("ocr_errors"):
+            doc.error_message = f"تمت الفهرسة مع ملاحظات OCR: {'; '.join(metadata['ocr_errors'][:2])}"
+        else:
+            doc.error_message = None
+
         await db.commit()
         await db.refresh(doc)
     except Exception as e:
+        logger.error(f"Failed to process and index document {doc.id}: {e}", exc_info=True)
         doc.status = "error"
-        doc.error_message = str(e)
+        doc.error_message = f"فشل في معالجة وفهرسة ملف الـ PDF: {str(e)}"
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"فشل في معالجة وفهرسة ملف الـ PDF: {str(e)}"
+            detail=doc.error_message
         )
         
     return doc

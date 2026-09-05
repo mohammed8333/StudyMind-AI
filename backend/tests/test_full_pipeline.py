@@ -37,7 +37,7 @@ async def test_full_pipeline_study_cycle():
         assert upload_res.status_code == 201
         doc_data = upload_res.json()
         doc_id = doc_data["id"]
-        assert doc_data["status"] == "indexed"
+        assert doc_data["status"] in ["ready", "indexed"]
         assert doc_data["total_pages"] == 3
 
         # 3. Retrieve chunks with page tracking

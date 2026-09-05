@@ -105,7 +105,7 @@ async def ask_tutor(
             detail="المستند المطلوب غير موجود أو لا تملك صلاحية الوصول إليه."
         )
         
-    if doc.status != "indexed":
+    if doc.status not in ["ready", "indexed"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="المستند قيد المعالجة أو حدث خطأ أثناء فهرسته، يرجى الانتظار."

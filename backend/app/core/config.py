@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
     
+    # OCR Settings
+    TESSERACT_CMD: str = os.getenv(
+        "TESSERACT_CMD", 
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe" if os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe") else "tesseract"
+    )
+    OCR_LANG: str = "ara+eng"
+    OCR_MIN_TEXT_CHARS: int = 40
+    OCR_DPI: int = 300
+    
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
