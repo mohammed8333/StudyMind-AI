@@ -6,9 +6,13 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  Award,
   BookOpen,
   Bot,
+  Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Edit3,
   FileText,
@@ -20,9 +24,11 @@ import {
   PlayCircle,
   RotateCcw,
   Sparkles,
+  Target,
   Trash2,
   TrendingUp,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -34,6 +40,57 @@ interface ConceptItem {
   total_attempts: number;
   correct_attempts: number;
   is_weak_point: boolean;
+  primary_error_type?: string;
+  primary_error_label?: string;
+  error_summary?: string;
+  is_proficient?: boolean;
+}
+
+interface RemedialQuestion {
+  id: number;
+  question_text: string;
+  question_type: string;
+  options: string[];
+  source_page?: number;
+}
+
+interface RemedialSessionData {
+  session_id: number;
+  concept_id: number;
+  concept_name: string;
+  document_id: number;
+  document_title: string;
+  primary_error_type: string;
+  primary_error_label: string;
+  diagnosis: string;
+  mini_lesson: string;
+  mastery_before: number;
+  total_questions: number;
+  questions: RemedialQuestion[];
+}
+
+interface RemedialFeedbackItem {
+  question_id: number;
+  question_text: string;
+  selected_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+  explanation: string;
+  source_page?: number;
+}
+
+interface RemedialResultData {
+  session_id: number;
+  concept_id: number;
+  concept_name: string;
+  score: number;
+  total_questions: number;
+  percentage: number;
+  mastery_before: number;
+  mastery_after: number;
+  is_proficient: boolean;
+  proficiency_message: string;
+  questions_feedback: RemedialFeedbackItem[];
 }
 
 interface DocumentAnalytics {
@@ -77,6 +134,66 @@ export default function MaterialDashboardPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Remedial Session state
+  const [showRemedialModal, setShowRemedialModal] = useState(false);
+  const [remedialLoading, setRemedialLoading] = useState(false);
+  const [remedialError, setRemedialError] = useState<string | null>(null);
+  const [remedialStep, setRemedialStep] = useState<"lesson" | "questions" | "result">("lesson");
+  const [remedialSession, setRemedialSession] = useState<RemedialSessionData | null>(null);
+  const [remedialAnswers, setRemedialAnswers] = useState<Record<number, string>>({});
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [isSubmittingRemedial, setIsSubmittingRemedial] = useState(false);
+  const [remedialResult, setRemedialResult] = useState<RemedialResultData | null>(null);
+
+  const startRemedialSession = async (conceptId: number) => {
+    setShowRemedialModal(true);
+    setRemedialLoading(true);
+    setRemedialError(null);
+    setRemedialStep("lesson");
+    setRemedialSession(null);
+    setRemedialAnswers({});
+    setCurrentQIndex(0);
+    setRemedialResult(null);
+
+    try {
+      const data = await api.learning.remediate(conceptId);
+      setRemedialSession(data);
+    } catch (err: any) {
+      setRemedialError(err.message || "فشل بدء الجلسة العلاجية.");
+    } finally {
+      setRemedialLoading(false);
+    }
+  };
+
+  const handleSelectRemedialOption = (questionId: number, option: string) => {
+    setRemedialAnswers(prev => ({
+      ...prev,
+      [questionId]: option
+    }));
+  };
+
+  const handleSubmitRemedial = async () => {
+    if (!remedialSession) return;
+    setIsSubmittingRemedial(true);
+    setRemedialError(null);
+
+    try {
+      const answersPayload = remedialSession.questions.map(q => ({
+        question_id: q.id,
+        selected_answer: remedialAnswers[q.id] || ""
+      }));
+
+      const res = await api.learning.submitRemedial(remedialSession.session_id, answersPayload);
+      setRemedialResult(res);
+      setRemedialStep("result");
+      loadMaterialData();
+    } catch (err: any) {
+      setRemedialError(err.message || "فشل تسليم الإجابات.");
+    } finally {
+      setIsSubmittingRemedial(false);
+    }
+  };
 
   const openRenameModal = () => {
     if (!documentData) return;
@@ -396,7 +513,7 @@ export default function MaterialDashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* 1. نقاط تحتاج تركيز (Weak Points) */}
-          <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm">
+          <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-rose-700 flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-rose-600" />
@@ -408,22 +525,61 @@ export default function MaterialDashboardPage() {
             </div>
 
             {!analytics || analytics.weak_concepts.length === 0 ? (
-              <div className="p-4 bg-slate-50 rounded-xl text-center">
+              <div className="p-4 bg-slate-50 rounded-xl text-center flex-1 flex items-center justify-center">
                 <p className="text-xs text-slate-500 leading-relaxed">
                   رائع جداً! لا توجد نقاط ضعف مسجلة في هذه المادة حتى الآن.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {analytics.weak_concepts.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 text-xs"
-                  >
-                    <span className="font-semibold text-slate-800">{c.concept_name}</span>
-                    <span className="font-bold text-rose-600 font-mono">{c.mastery_score}%</span>
-                  </div>
-                ))}
+              <div className="space-y-3 flex-1">
+                {analytics.weak_concepts.map((c, i) => {
+                  const errType = c.primary_error_type || "knowledge_gap";
+                  const errLabel = c.primary_error_label || "فجوة معرفية في المفهوم";
+                  
+                  let badgeColor = "bg-rose-50 text-rose-700 border-rose-200";
+                  let badgeIcon = "📖";
+                  if (errType === "calculation_mistake") {
+                    badgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+                    badgeIcon = "🔢";
+                  } else if (errType === "careless_error") {
+                    badgeColor = "bg-amber-50 text-amber-700 border-amber-200";
+                    badgeIcon = "⚡";
+                  } else if (errType === "misconception") {
+                    badgeColor = "bg-purple-50 text-purple-700 border-purple-200";
+                    badgeIcon = "💡";
+                  }
+
+                  return (
+                    <div
+                      key={i}
+                      className="p-3 rounded-2xl bg-white border border-rose-100 shadow-[0_2px_8px_rgba(244,63,94,0.06)] hover:border-rose-300 transition-all space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-xs">{c.concept_name}</span>
+                        <span className="font-bold text-rose-600 font-mono text-xs bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+                          {c.mastery_score}%
+                        </span>
+                      </div>
+
+                      {/* Error diagnosis badge (Why you're weak) */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1 ${badgeColor}`}>
+                          <span>{badgeIcon}</span>
+                          <span>{errLabel}</span>
+                        </span>
+                      </div>
+
+                      {/* Start Remedial Session Button */}
+                      <button
+                        onClick={() => startRemedialSession(c.concept_id)}
+                        className="w-full py-2 px-3 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm hover:shadow transition-all"
+                      >
+                        <Target className="w-3.5 h-3.5" />
+                        <span>بدء جلسة علاجية 🎯</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -798,6 +954,356 @@ export default function MaterialDashboardPage() {
               >
                 إلغاء
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Adaptive Remedial Learning Modal */}
+      {showRemedialModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shadow-inner">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-slate-900 text-base">جلسة علاجية تكيفية مغلقة</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">
+                      Adaptive Loop
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {remedialSession ? `${remedialSession.concept_name} • ${remedialSession.document_title}` : "تحليل نقطة الضعف وإعداد خطة العلاج"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRemedialModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              {remedialLoading && (
+                <div className="py-20 flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">جاري تجهيز جلستك العلاجية الذكية...</h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm leading-relaxed">
+                      يتم الآن تشخيص سبب الخطأ واستخراج الدرس المصغر والأسئلة العلاجية حصراً من نصوص مذكرتك المعتمدة.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {remedialError && !remedialLoading && (
+                <div className="p-5 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
+                  <AlertTriangle className="w-8 h-8 text-rose-500" />
+                  <div>
+                    <h5 className="font-bold text-rose-900 text-sm">تعذر بدء الجلسة العلاجية</h5>
+                    <p className="text-xs text-rose-700 mt-1">{remedialError}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRemedialModal(false)}
+                    className="px-4 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors"
+                  >
+                    إغلاق
+                  </button>
+                </div>
+              )}
+
+              {!remedialLoading && remedialSession && (
+                <>
+                  {/* STEP 1: Lesson & Diagnosis */}
+                  {remedialStep === "lesson" && (
+                    <div className="space-y-4">
+                      {/* Diagnosis Box (Why you're weak) */}
+                      <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-sm space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <Lightbulb className="w-4 h-4 text-amber-600" />
+                            تشخيص محرك التعلم: لماذا أخطأت في هذا المفهوم؟
+                          </span>
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                            {remedialSession.primary_error_label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-800 leading-relaxed font-medium whitespace-pre-line">
+                          {remedialSession.diagnosis}
+                        </p>
+                      </div>
+
+                      {/* Mini Lesson strictly grounded */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-brand-600" />
+                            الدرس العلاجي المركز (مستخلص من مذكرتك حصراً)
+                          </span>
+                          <span className="text-[10px] font-semibold bg-white border border-slate-200 text-slate-500 px-2.5 py-0.5 rounded-full">
+                            محتوى موثق 100%
+                          </span>
+                        </div>
+                        <div className="text-xs leading-relaxed text-slate-700 whitespace-pre-line space-y-2">
+                          {remedialSession.mini_lesson}
+                        </div>
+                      </div>
+
+                      {/* Button to proceed to re-test */}
+                      <div className="pt-2">
+                        <button
+                          onClick={() => setRemedialStep("questions")}
+                          className="w-full py-3 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
+                        >
+                          <span>استوعبت الدرس! ابدأ الأسئلة العلاجية ({remedialSession.questions.length} أسئلة)</span>
+                          <ArrowRight className="w-4 h-4 -rotate-180" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 2: Targeted Re-test Questions */}
+                  {remedialStep === "questions" && (
+                    <div className="space-y-5">
+                      {/* Questions Progress Header */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-700">
+                            السؤال {currentQIndex + 1} من {remedialSession.questions.length}
+                          </span>
+                          <span className="text-brand-600 font-mono">
+                            {Math.round(((currentQIndex + 1) / remedialSession.questions.length) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-brand-500 to-indigo-600 transition-all duration-300 rounded-full"
+                            style={{
+                              width: `${((currentQIndex + 1) / remedialSession.questions.length) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Current Question */}
+                      {(() => {
+                        const q = remedialSession.questions[currentQIndex];
+                        const selected = remedialAnswers[q.id];
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-lg">
+                                سؤال علاجي مستهدف
+                              </span>
+                              {q.source_page && (
+                                <span className="text-[11px] font-medium text-slate-400">
+                                  صفحة {q.source_page}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="text-sm font-bold text-slate-900 leading-relaxed">
+                              {q.question_text}
+                            </h4>
+
+                            {/* Options */}
+                            <div className="space-y-2.5 pt-1">
+                              {q.options.map((opt, optIdx) => {
+                                const isSelected = selected === opt;
+                                return (
+                                  <button
+                                    key={optIdx}
+                                    type="button"
+                                    onClick={() => handleSelectRemedialOption(q.id, opt)}
+                                    className={`w-full text-right p-3.5 rounded-xl border text-xs font-medium transition-all flex items-center justify-between gap-3 ${
+                                      isSelected
+                                        ? "bg-brand-50/80 border-brand-500 text-brand-900 shadow-sm"
+                                        : "bg-slate-50/50 border-slate-200 text-slate-700 hover:bg-slate-100/70"
+                                    }`}
+                                  >
+                                    <span className="leading-relaxed">{opt}</span>
+                                    <div
+                                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                                        isSelected
+                                          ? "bg-brand-600 border-brand-600 text-white"
+                                          : "border-slate-300 bg-white"
+                                      }`}
+                                    >
+                                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Navigation and Submit */}
+                      <div className="flex items-center justify-between pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
+                          disabled={currentQIndex === 0}
+                          className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                          <span>السابق</span>
+                        </button>
+
+                        {currentQIndex < remedialSession.questions.length - 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => setCurrentQIndex((prev) => prev + 1)}
+                            className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <span>التالي</span>
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleSubmitRemedial}
+                            disabled={isSubmittingRemedial}
+                            className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {isSubmittingRemedial ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>جاري التقييم...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Target className="w-4 h-4" />
+                                <span>تسليم الإجابات وإعادة تقييم الإتقان</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Results & Mastery Before / After */}
+                  {remedialStep === "result" && remedialResult && (
+                    <div className="space-y-5">
+                      {/* Proficiency Status Banner */}
+                      <div
+                        className={`p-5 rounded-2xl border text-center space-y-2 ${
+                          remedialResult.is_proficient
+                            ? "bg-emerald-50/80 border-emerald-200 text-emerald-950"
+                            : "bg-amber-50/80 border-amber-200 text-amber-950"
+                        }`}
+                      >
+                        <div
+                          className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center ${
+                            remedialResult.is_proficient
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {remedialResult.is_proficient ? (
+                            <Award className="w-7 h-7" />
+                          ) : (
+                            <Zap className="w-7 h-7" />
+                          )}
+                        </div>
+                        <h4 className="font-black text-base">
+                          {remedialResult.is_proficient
+                            ? "تم إتقان المفهوم بنجاح! 🎯"
+                            : "نتيجة مشجعة، اقتربت من الإتقان!"}
+                        </h4>
+                        <p className="text-xs leading-relaxed max-w-md mx-auto font-medium">
+                          {remedialResult.proficiency_message}
+                        </p>
+                      </div>
+
+                      {/* Mastery Before vs After Metrics */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl text-center">
+                          <span className="text-[11px] font-medium text-slate-500 block">الإتقان السابق</span>
+                          <span className="text-lg font-black text-rose-600 font-mono mt-1 block">
+                            {remedialResult.mastery_before}%
+                          </span>
+                        </div>
+
+                        <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl text-center shadow-sm">
+                          <span className="text-[11px] font-bold text-emerald-800 block">الإتقان الحالي 🚀</span>
+                          <span className="text-xl font-black text-emerald-600 font-mono mt-1 block">
+                            {remedialResult.mastery_after}%
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl text-center">
+                          <span className="text-[11px] font-medium text-slate-500 block">درجة الاختبار العلاجي</span>
+                          <span className="text-lg font-black text-slate-900 font-mono mt-1 block">
+                            {remedialResult.score}/{remedialResult.total_questions}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Question by question feedback */}
+                      <div className="space-y-3 pt-2">
+                        <h5 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <span>مراجعة الأسئلة العلاجية وتفسيراتها:</span>
+                        </h5>
+                        <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                          {remedialResult.questions_feedback.map((fb, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                                fb.is_correct
+                                  ? "bg-emerald-50/40 border-emerald-200"
+                                  : "bg-rose-50/40 border-rose-200"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-slate-900">سؤال {idx + 1}: {fb.question_text}</span>
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                                    fb.is_correct
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-rose-100 text-rose-800"
+                                  }`}
+                                >
+                                  {fb.is_correct ? "إجابة صحيحة ✓" : "إجابة غير صحيحة ✗"}
+                                </span>
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                <strong>تفسير الكتاب:</strong> {fb.explanation}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Finish & update dashboard button */}
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowRemedialModal(false);
+                            loadMaterialData();
+                          }}
+                          className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>إنهاء وتحديث لوحة التحكم 🚀</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

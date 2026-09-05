@@ -72,7 +72,15 @@ async def get_student_analytics(
     weak_concepts: List[ConceptMasteryItem] = []
     strong_concepts: List[ConceptMasteryItem] = []
     
+    ERROR_LABELS = {
+        "calculation_mistake": "خطأ حسابي في تطبيق القانون",
+        "careless_error": "تسرع في القراءة أو إغفال النفي",
+        "misconception": "فهم خاطئ أو خلط مفاهيم",
+        "knowledge_gap": "فجوة معرفية في استيعاب المفهوم"
+    }
+
     for mastery, concept in rows:
+        err_lbl = ERROR_LABELS.get(mastery.primary_error_type) if mastery.primary_error_type else None
         item = ConceptMasteryItem(
             concept_id=concept.id,
             concept_name=concept.name,
@@ -80,7 +88,11 @@ async def get_student_analytics(
             mastery_score=mastery.mastery_score,
             total_attempts=mastery.total_attempts,
             correct_attempts=mastery.correct_attempts,
-            is_weak_point=mastery.is_weak_point
+            is_weak_point=mastery.is_weak_point,
+            primary_error_type=mastery.primary_error_type,
+            primary_error_label=err_lbl,
+            error_summary=mastery.error_summary,
+            is_proficient=bool(mastery.is_proficient)
         )
         if mastery.is_weak_point or mastery.mastery_score < 70.0:
             weak_concepts.append(item)

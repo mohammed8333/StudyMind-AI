@@ -62,6 +62,8 @@ class QuestionResponse(Base):
     question_id = Column(Integer, ForeignKey("quiz_questions.id", ondelete="CASCADE"), nullable=False)
     student_answer = Column(String(255), nullable=False)
     is_correct = Column(Boolean, default=False)
+    error_type = Column(String(50), nullable=True)  # knowledge_gap, misconception, calculation_mistake, careless_error
+    error_reason = Column(Text, nullable=True)
     
     submission = relationship("StudentSubmission", back_populates="responses")
     question = relationship("QuizQuestion", back_populates="responses")

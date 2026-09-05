@@ -9,6 +9,10 @@ class ConceptMasteryItem(BaseModel):
     total_attempts: int
     correct_attempts: int
     is_weak_point: bool
+    primary_error_type: Optional[str] = None
+    primary_error_label: Optional[str] = None
+    error_summary: Optional[str] = None
+    is_proficient: bool = False
     
     model_config = ConfigDict(from_attributes=True)
 

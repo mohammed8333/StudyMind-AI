@@ -58,7 +58,13 @@ async def init_db():
                 "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';",
                 "ALTER TABLE documents ADD COLUMN progress_percentage INTEGER DEFAULT 0;",
                 "ALTER TABLE documents ADD COLUMN progress_stage VARCHAR(100) DEFAULT 'في قائمة الانتظار';",
-                "ALTER TABLE documents ADD COLUMN retry_count INTEGER DEFAULT 0;"
+                "ALTER TABLE documents ADD COLUMN retry_count INTEGER DEFAULT 0;",
+                "ALTER TABLE student_mastery ADD COLUMN primary_error_type VARCHAR(50);",
+                "ALTER TABLE student_mastery ADD COLUMN error_summary TEXT;",
+                "ALTER TABLE student_mastery ADD COLUMN is_proficient BOOLEAN DEFAULT 0;",
+                "ALTER TABLE student_mastery ADD COLUMN last_remediated_at DATETIME;",
+                "ALTER TABLE question_responses ADD COLUMN error_type VARCHAR(50);",
+                "ALTER TABLE question_responses ADD COLUMN error_reason TEXT;"
             ]:
                 try:
                     await conn.execute(text(col_stmt))

@@ -331,6 +331,87 @@ async def generate_quiz_for_document(
         questions=created_questions
     )
 
+def classify_student_error(
+    question: QuizQuestion,
+    student_answer: str,
+    correct_answer: str,
+    time_taken_seconds: int = 0,
+    total_questions: int = 1
+) -> tuple[str, str]:
+    """
+    Classifies a student's wrong answer into one of 4 root causes:
+    1. calculation_mistake: math/physics numbers, calculations, formula units.
+    2. careless_error: negative words ('ما عدا', 'ليس', 'غير صحيح', 'باستثناء'), or fast response.
+    3. misconception: choosing an opposite or confusable distractor.
+    4. knowledge_gap: missing factual definition or core concept.
+    """
+    q_text = question.question_text or ""
+    s_ans = student_answer or ""
+    c_ans = correct_answer or ""
+    
+    # 1. Careless error check (Negative / Exclusion phrasing in question or extreme speed)
+    careless_keywords = [
+        "ما عدا", "ليس", "ليست", "غير صحيح", "غير صحيحة", "أي مما يلي لا",
+        "أي العبارات خاطئة", "باستثناء", "لا يعتبر", "لا ينطبق", "خاطئة"
+    ]
+    if any(kw in q_text for kw in careless_keywords):
+        return (
+            "careless_error",
+            "خطأ تسرع في قراءة صيغة السؤال أو إغفال أداة النفي/الاستثناء (مثل: ما عدا / ليس)."
+        )
+    if time_taken_seconds > 0 and (time_taken_seconds / max(1, total_questions)) < 3.0:
+        return (
+            "careless_error",
+            "خطأ ناتج عن التسرع في الإجابة واختيار الخيار دون تدقيق كافٍ."
+        )
+
+    # 2. Calculation mistake check
+    calc_units = ["م/ث", "نيوتن", "جول", "كجم", "سـم", "سم", "متر", "ثانية", "فولت", "أمبير", "هرتز", "وات", "باسكال", "مول", "كم/س"]
+    has_digits = bool(re.search(r'\d+', q_text) or re.search(r'\d+', s_ans) or re.search(r'\d+', c_ans))
+    has_math_ops = any(op in q_text or op in s_ans for op in ["+", "=", "*", "×", "/", "÷", "^", "%", "√", "±"])
+    has_units = any(u in q_text or u in s_ans or u in c_ans for u in calc_units)
+    
+    if (has_digits or has_math_ops) and (has_units or re.search(r'^\s*[-+]?\d+(\.\d+)?', s_ans.strip())):
+        return (
+            "calculation_mistake",
+            "خطأ حسابي في تطبيق القانون أو تعويض الأرقام والوحدات الفيزيائية/الرياضية."
+        )
+
+    # 3. Misconception check (Opposite pairs or conceptual confusion)
+    opposing_pairs = [
+        ("طردي", "عكسي"), ("طردية", "عكسية"),
+        ("يزداد", "يقل"), ("زيادة", "نقصان"), ("تزيد", "تنقص"),
+        ("موجب", "سالب"), ("موجبة", "سالبة"),
+        ("ثابت", "متغير"), ("ثابتة", "متغيرة"),
+        ("أكبر", "أصغر"), ("أعلى", "أقل"),
+        ("تسارع", "تباطؤ"), ("جاذبة", "طاردة"),
+        ("حمضي", "قاعدي"), ("فلز", "لافلز")
+    ]
+    for w1, w2 in opposing_pairs:
+        if (w1 in s_ans and w2 in c_ans) or (w2 in s_ans and w1 in c_ans):
+            return (
+                "misconception",
+                f"فهم معكوس أو خلط مفاهيمي بين '{w1}' و '{w2}'."
+            )
+
+    # If options json exists, check if student selected a concept distractor
+    try:
+        opts = json.loads(question.options_json or "[]")
+        if len(opts) >= 3 and len(s_ans) > 15:
+            return (
+                "misconception",
+                "التباس مفاهيمي بين فكرتين متقاربتين في نصوص الدرس."
+            )
+    except Exception:
+        pass
+
+    # 4. Knowledge gap (Default)
+    return (
+        "knowledge_gap",
+        "فجوة معرفية في استيعاب التعريف أو المفهوم الأساسي في هذا الموضوع."
+    )
+
+
 async def grade_quiz_submission(
     db: AsyncSession,
     quiz_id: int,
@@ -371,12 +452,25 @@ async def grade_quiz_submission(
         if is_corr:
             correct_count += 1
             
+        err_type = None
+        err_reason = None
+        if not is_corr:
+            err_type, err_reason = classify_student_error(
+                question=question,
+                student_answer=user_ans,
+                correct_answer=question.correct_answer,
+                time_taken_seconds=submission_req.time_taken_seconds,
+                total_questions=total_q
+            )
+            
         # Record response
         resp = QuestionResponse(
             submission_id=sub.id,
             question_id=q_id,
             student_answer=user_ans,
-            is_correct=is_corr
+            is_correct=is_corr,
+            error_type=err_type,
+            error_reason=err_reason
         )
         db.add(resp)
         
@@ -406,9 +500,15 @@ async def grade_quiz_submission(
                 mastery.total_attempts += 1
                 if is_corr:
                     mastery.correct_attempts += 1
+                else:
+                    if err_type:
+                        mastery.primary_error_type = err_type
+                        mastery.error_summary = err_reason
                 # Calculate percentage
                 mastery.mastery_score = round((mastery.correct_attempts / mastery.total_attempts) * 100, 1)
                 mastery.is_weak_point = (mastery.mastery_score < 70.0)
+                if mastery.mastery_score < 70.0:
+                    mastery.is_proficient = False
                 
         feedback_list.append(QuestionResultDetail(
             question_id=q_id,
@@ -418,7 +518,9 @@ async def grade_quiz_submission(
             is_correct=is_corr,
             explanation=question.explanation,
             source_page=question.source_page,
-            concept_name=c_name
+            concept_name=c_name,
+            error_type=err_type,
+            error_reason=err_reason
         ))
         
     score = float(correct_count)

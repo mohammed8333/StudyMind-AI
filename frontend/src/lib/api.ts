@@ -325,4 +325,44 @@ export const api = {
       return res.json();
     },
   },
+
+  learning: {
+    async remediate(conceptId: number) {
+      const res = await fetch(`${API_BASE_URL}/learning/remediate/${conceptId}`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل بدء الجلسة العلاجية");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async submitRemedial(sessionId: number, answers: { question_id: number; selected_answer: string }[]) {
+      const res = await fetch(`${API_BASE_URL}/learning/remediate/${sessionId}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ answers }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تسليم إجابات الجلسة العلاجية");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async getWeakConcepts(documentId?: number) {
+      const url = new URL(`${API_BASE_URL}/learning/weak-concepts`);
+      if (documentId) url.searchParams.append("document_id", documentId.toString());
+      const res = await fetch(url.toString(), {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب المفاهيم الضعيفة");
+      return res.json();
+    },
+  },
 };

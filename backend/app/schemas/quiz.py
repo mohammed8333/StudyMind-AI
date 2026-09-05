@@ -44,6 +44,8 @@ class QuestionResultDetail(BaseModel):
     explanation: str
     source_page: Optional[int] = None
     concept_name: Optional[str] = None
+    error_type: Optional[str] = None
+    error_reason: Optional[str] = None
 
 class QuizResultResponse(BaseModel):
     submission_id: int
