@@ -1,5 +1,6 @@
 import logging
 from typing import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
@@ -46,6 +47,14 @@ async def init_db():
                 except Exception as ext_err:
                     logger.warning(f"pgvector extension check failed (might already exist or not supported): {ext_err}")
             await conn.run_sync(Base.metadata.create_all)
+            for col_stmt in [
+                "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
+                "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';"
+            ]:
+                try:
+                    await conn.execute(text(col_stmt))
+                except Exception:
+                    pass
             logger.info("Database initialized successfully.")
     except Exception as e:
         if settings.USE_SQLITE_FALLBACK and not is_sqlite:
@@ -67,6 +76,14 @@ async def init_db():
             )
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                for col_stmt in [
+                    "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
+                    "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';"
+                ]:
+                    try:
+                        await conn.execute(text(col_stmt))
+                    except Exception:
+                        pass
             logger.info("SQLite fallback database initialized successfully.")
         else:
             raise e

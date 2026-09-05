@@ -21,6 +21,8 @@ from app.schemas.document import (
 from app.api.deps import get_current_user
 from app.services.pdf_extractor import process_and_chunk_pdf
 from app.services.vector_store import get_embedding
+from app.services.file_validator import validate_uploaded_file
+from app.services.document_processor import document_processor
 
 logger = logging.getLogger(__name__)
 
@@ -35,30 +37,33 @@ async def upload_document(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Upload a study document (PDF), extract Arabic content, chunk, and index it into the Knowledge Base.
+    Upload a study document (PDF, DOCX, TXT, JPG, PNG), validate its signatures,
+    extract content, chunk, and index it into the Knowledge Base.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="فقط ملفات الـ PDF مدعومة حالياً."
-        )
-        
-    unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
+    content = await file.read()
+    
+    # 1. Real Backend File Validation (Magic bytes, extension, MIME, size, path traversal)
+    safe_filename, file_type = validate_uploaded_file(
+        filename=file.filename,
+        content=content,
+        content_type=file.content_type
+    )
+    
+    unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
     file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
     
-    # Save file to disk
+    # Save validated file to disk
     async with aiofiles.open(file_path, 'wb') as out_file:
-        content = await file.read()
-        file_size = len(content)
         await out_file.write(content)
         
     # Create Document record with initial 'uploading' status
     doc = Document(
         title=title,
         subject=subject,
-        filename=file.filename,
+        filename=safe_filename,
         file_path=file_path,
-        file_size=file_size,
+        file_type=file_type,
+        file_size=len(content),
         status="uploading",
         owner_id=user.id
     )
@@ -66,13 +71,13 @@ async def upload_document(
     await db.commit()
     await db.refresh(doc)
     
-    # Process PDF and generate chunks
+    # 2. Extract & Index document
     try:
         doc.status = "extracting"
         await db.commit()
 
-        # Extract text page-by-page (selective OCR triggers if needed)
-        chunks, metadata = process_and_chunk_pdf(file_path)
+        # Unified document processor handles PDF, DOCX, TXT, and Images
+        chunks, metadata = document_processor.process(file_path, file_type=file_type)
         doc.total_pages = metadata.get("total_pages", 1)
         
         # 3. Indexing state
@@ -93,7 +98,6 @@ async def upload_document(
         
         # Save chunks and embeddings
         for c in chunks:
-            # Generate embedding
             emb = await get_embedding(c["content"])
             emb_json = json.dumps(emb)
             
@@ -102,6 +106,7 @@ async def upload_document(
                 page_number=c["page_number"],
                 chunk_index=c["chunk_index"],
                 chapter=c["chapter"],
+                source_type=c.get("source_type", file_type),
                 content=c["content"],
                 content_normalized=c["content_normalized"],
                 embedding_json=emb_json
@@ -119,7 +124,7 @@ async def upload_document(
     except Exception as e:
         logger.error(f"Failed to process and index document {doc.id}: {e}", exc_info=True)
         doc.status = "error"
-        doc.error_message = f"فشل في معالجة وفهرسة ملف الـ PDF: {str(e)}"
+        doc.error_message = f"فشل في معالجة وفهرسة الملف: {str(e)}"
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

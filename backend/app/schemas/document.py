@@ -23,6 +23,7 @@ class DocumentChunkResponse(BaseModel):
     chunk_index: int
     chapter: Optional[str] = None
     section_title: Optional[str] = None
+    source_type: Optional[str] = "pdf"
     content: str
     
     model_config = ConfigDict(from_attributes=True)
@@ -30,6 +31,7 @@ class DocumentChunkResponse(BaseModel):
 class DocumentResponse(DocumentBase):
     id: int
     filename: str
+    file_type: Optional[str] = "pdf"
     file_size: int
     total_pages: int
     status: str

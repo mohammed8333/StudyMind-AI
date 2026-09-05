@@ -11,9 +11,10 @@ class Document(Base):
     subject = Column(String(100), nullable=True)  # فيزياء، لغة عربية، كيمياء، أحياء، تاريخ...
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
+    file_type = Column(String(50), default="pdf", nullable=True)  # pdf, docx, txt, image
     file_size = Column(Integer, default=0)
     total_pages = Column(Integer, default=0)
-    status = Column(String(50), default="processing")  # processing, indexed, error
+    status = Column(String(50), default="processing")  # uploading, extracting, ocr, indexing, ready, error
     error_message = Column(Text, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -33,6 +34,7 @@ class DocumentChunk(Base):
     chunk_index = Column(Integer, nullable=False)
     chapter = Column(String(255), nullable=True)
     section_title = Column(String(255), nullable=True)
+    source_type = Column(String(50), default="pdf", nullable=True)  # pdf, docx, txt, image
     content = Column(Text, nullable=False)
     content_normalized = Column(Text, nullable=False)  # Arabic normalized for keyword / lexical search
     embedding_json = Column(Text, nullable=True)       # Embedding vector stored as JSON string (universal compatibility)

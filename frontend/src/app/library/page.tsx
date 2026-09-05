@@ -6,10 +6,14 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BookOpen,
+  CheckCircle2,
   Edit3,
+  File,
+  FileText,
   FileUp,
   Filter,
   GraduationCap,
+  Image as ImageIcon,
   Loader2,
   MessageSquare,
   PlayCircle,
@@ -17,6 +21,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  UploadCloud,
   X
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -26,6 +31,7 @@ interface DocumentItem {
   title: string;
   subject?: string;
   filename: string;
+  file_type?: string;
   total_pages: number;
   status: string;
   error_message?: string;
@@ -48,6 +54,50 @@ export default function LibraryPage() {
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadSubject, setUploadSubject] = useState("الفيزياء");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileSelect = (file: File) => {
+    setUploadFile(file);
+    if (!uploadTitle.trim()) {
+      const baseName = file.name.replace(/\.[^/.]+$/, "");
+      setUploadTitle(baseName);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const getFormatBadge = (fileType?: string, filename?: string) => {
+    const ext = (fileType || filename?.split(".").pop() || "pdf").toLowerCase();
+    if (ext === "pdf") {
+      return { label: "PDF", bg: "bg-red-50 text-red-700 border-red-200/60" };
+    } else if (ext === "docx" || ext === "doc") {
+      return { label: "DOCX", bg: "bg-blue-50 text-blue-700 border-blue-200/60" };
+    } else if (ext === "txt") {
+      return { label: "TXT", bg: "bg-slate-100 text-slate-700 border-slate-200" };
+    } else if (["jpg", "jpeg", "png", "image"].includes(ext)) {
+      return { label: "صورة", bg: "bg-purple-50 text-purple-700 border-purple-200/60" };
+    }
+    return { label: ext.toUpperCase(), bg: "bg-slate-100 text-slate-700 border-slate-200" };
+  };
 
   useEffect(() => {
     loadLibrary();
@@ -336,6 +386,14 @@ export default function LibraryPage() {
                     <span className="text-[11px] font-bold px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full">
                       {doc.subject || "مادة عامة"}
                     </span>
+                    {(() => {
+                      const badge = getFormatBadge(doc.file_type, doc.filename);
+                      return (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.bg}`}>
+                          {badge.label}
+                        </span>
+                      );
+                    })()}
                     {doc.status === "ready" || doc.status === "indexed" ? (
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200/60">
                         جاهز للدراسة ✓
@@ -422,16 +480,20 @@ export default function LibraryPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-slate-900">رفع مادة دراسية جديدة (PDF)</h3>
+              <h3 className="text-lg font-bold text-slate-900">رفع ملف دراسي جديد</h3>
               <button
-                onClick={() => setShowUpload(false)}
+                onClick={() => {
+                  setShowUpload(false);
+                  setUploadFile(null);
+                }}
+                disabled={isUploading}
                 className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-              اختر كتاب الوزارة أو ملزمتك، وسيقوم النظام فوراً بفهرسة المحتوى وتجهيز المدرس الذكي والاختبارات.
+              اختر كتاب الوزارة، ملخص DOCX، نص TXT أو صورة ممسوحة ضوئياً. يدعم النظام الاستخراج الذكي و OCR وتجهيز الكويزات والشرح.
             </p>
 
             <form onSubmit={handleUpload} className="space-y-4">
@@ -467,15 +529,76 @@ export default function LibraryPage() {
                 </select>
               </div>
 
+              {/* Drag & Drop Upload Zone */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">ملف الـ PDF</label>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  required
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-                />
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">الملف الدراسي</label>
+                {!uploadFile ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer ${
+                      isDragging
+                        ? "border-brand-500 bg-brand-50/50 scale-[1.01]"
+                        : "border-slate-300 hover:border-brand-400 bg-slate-50/50 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      required
+                      accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileSelect(file);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-3">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 mb-1">
+                      اسحب وأفلت الملف هنا أو <span className="text-brand-600 underline">تصفح جهازك</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 mb-3">الحد الأقصى لحجم الملف: 50 ميجابايت</p>
+                    
+                    {/* Supported formats badges */}
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-200/50">PDF</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/50">DOCX</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">TXT</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/50">JPG / PNG</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
+                        {uploadFile.type.startsWith("image/") || /\.(jpe?g|png)$/i.test(uploadFile.name) ? (
+                          <ImageIcon className="w-5 h-5" />
+                        ) : /\.(docx?)$/i.test(uploadFile.name) ? (
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        ) : (
+                          <File className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate" dir="ltr">{uploadFile.name}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB • {uploadFile.name.split(".").pop()?.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isUploading}
+                      onClick={() => setUploadFile(null)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      title="إزالة الملف"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {isUploading && (
@@ -483,18 +606,18 @@ export default function LibraryPage() {
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                     <span className="flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600" />
-                      جاري المعالجة والتعرف الضوئي (OCR)...
+                      جاري التحقق والمعالجة الذكية...
                     </span>
-                    <span className="text-[11px] font-mono text-brand-600">Smart OCR & RAG</span>
+                    <span className="text-[11px] font-mono text-brand-600">Unified Pipeline</span>
                   </div>
                   <div className="grid grid-cols-4 gap-1 pt-1 text-[10px] text-center font-bold">
-                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">1. رفع الملف</span>
-                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">2. فحص النص</span>
-                    <span className="py-1 px-1 bg-blue-100 text-blue-800 rounded-lg">3. OCR ذكي</span>
+                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">1. فحص التوقيع</span>
+                    <span className="py-1 px-1 bg-brand-100 text-brand-800 rounded-lg">2. استخراج/OCR</span>
+                    <span className="py-1 px-1 bg-blue-100 text-blue-800 rounded-lg">3. التقطيع والضبط</span>
                     <span className="py-1 px-1 bg-emerald-100 text-emerald-800 rounded-lg">4. الفهرسة</span>
                   </div>
                   <p className="text-[10px] text-slate-400 text-center">
-                    يتم تطبيق OCR تلقائياً وبشكل انتقائي على الصفحات الممسوحة ضوئياً فقط.
+                    يتم استخراج النصوص وتحليلها وتوليد الـ Embeddings تلقائياً لجميع الصيغ المدعومة.
                   </p>
                 </div>
               )}
