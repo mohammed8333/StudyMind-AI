@@ -365,4 +365,167 @@ export const api = {
       return res.json();
     },
   },
+
+  planner: {
+    async generate(data: {
+      exam_date: string;
+      subjects?: string[];
+      available_study_time?: number;
+      preferred_days?: string[];
+      daily_time_limit?: number;
+      priority?: string;
+      title?: string;
+    }): Promise<StudyPlan> {
+      const res = await fetch(`${API_BASE_URL}/planner/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إنشاء الخطة الدراسية");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async getActive(): Promise<StudyPlan | null> {
+      const res = await fetch(`${API_BASE_URL}/planner/active`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("فشل جلب الخطة الدراسية الحالية");
+      return res.json();
+    },
+
+    async getToday(): Promise<TodayPlanResponse> {
+      const res = await fetch(`${API_BASE_URL}/planner/today`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب مهام خطة اليوم");
+      return res.json();
+    },
+
+    async getCalendar(startDate?: string, endDate?: string): Promise<CalendarDayTasks[]> {
+      const url = new URL(`${API_BASE_URL}/planner/calendar`);
+      if (startDate) url.searchParams.append("start_date", startDate);
+      if (endDate) url.searchParams.append("end_date", endDate);
+      const res = await fetch(url.toString(), {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب تقويم الخطة الدراسية");
+      return res.json();
+    },
+
+    async updateTask(
+      taskId: number,
+      data: {
+        status?: "PENDING" | "COMPLETED" | "SKIPPED";
+        scheduled_date?: string;
+        duration_minutes?: number;
+        notes?: string;
+      }
+    ): Promise<StudyPlanTask> {
+      const res = await fetch(`${API_BASE_URL}/planner/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تحديث حالة المهمة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async rescheduleOverdue(): Promise<{ rescheduled_count: number; message: string }> {
+      const res = await fetch(`${API_BASE_URL}/planner/reschedule-overdue`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إعادة جدولة المهام المتأخرة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async sync(): Promise<{ updated: boolean; modified_tasks: number; injected_remedial_tasks: number; message: string }> {
+      const res = await fetch(`${API_BASE_URL}/planner/sync`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل المزامنة التكيفية للخطة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+  },
 };
+
+export interface StudyPlanTask {
+  id: number;
+  plan_id: number;
+  scheduled_date: string;
+  day_number: number;
+  subject: string;
+  document_id?: number | null;
+  document_title?: string | null;
+  chapter?: string | null;
+  concept_id?: number | null;
+  concept_name?: string | null;
+  activity_type: "Study" | "Review" | "Remedial" | "Quiz" | "Mock Exam";
+  activity_label: string;
+  duration_minutes: number;
+  recommended_questions_count: number;
+  status: "PENDING" | "COMPLETED" | "SKIPPED";
+  completed_at?: string | null;
+  notes?: string | null;
+  order_index: number;
+}
+
+export interface StudyPlan {
+  id: number;
+  student_id: number;
+  title: string;
+  exam_date: string;
+  days_until_exam: number;
+  subjects: string[];
+  available_study_time: number;
+  preferred_days: string[];
+  daily_time_limit: number;
+  priority: "weak_points_first" | "balanced" | "exam_readiness";
+  is_active: boolean;
+  total_tasks: number;
+  completed_tasks: number;
+  progress_percentage: number;
+  created_at: string;
+  updated_at: string;
+  tasks: StudyPlanTask[];
+}
+
+export interface TodayPlanResponse {
+  date: string;
+  day_name: string;
+  total_tasks_today: number;
+  completed_tasks_today: number;
+  today_progress_percentage: number;
+  estimated_total_minutes: number;
+  tasks: StudyPlanTask[];
+}
+
+export interface CalendarDayTasks {
+  date: string;
+  day_name: string;
+  tasks_count: number;
+  completed_count: number;
+  is_overdue: boolean;
+  tasks: StudyPlanTask[];
+}
+

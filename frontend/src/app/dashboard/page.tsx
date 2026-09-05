@@ -9,6 +9,7 @@ import {
   Award,
   BookOpen,
   BrainCircuit,
+  CalendarDays,
   CheckCircle2,
   Clock,
   Flame,
@@ -26,7 +27,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, StudyPlan, TodayPlanResponse } from "@/lib/api";
 
 interface DailyTask {
   id: string;
@@ -74,6 +75,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
+  const [todayPlan, setTodayPlan] = useState<TodayPlanResponse | null>(null);
 
   // Proposal 3: Quick 60-Second Challenge State
   const [challenge, setChallenge] = useState<QuickChallengeQuestion | null>(null);
@@ -118,12 +121,16 @@ export default function DashboardPage() {
       const me = await api.auth.getMe();
       setUser(me);
 
-      const [docs, anl] = await Promise.all([
-        api.documents.list(),
-        api.analytics.getDashboard(),
+      const [docs, anl, planData, todayData] = await Promise.all([
+        api.documents.list().catch(() => []),
+        api.analytics.getDashboard().catch(() => null),
+        api.planner.getActive().catch(() => null),
+        api.planner.getToday().catch(() => null),
       ]);
       setDocuments(docs);
       setAnalytics(anl);
+      setStudyPlan(planData);
+      setTodayPlan(todayData);
 
       // Load Quick Challenge
       loadQuickChallenge();
@@ -320,6 +327,63 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Intelligent Study Planner Widget */}
+      {studyPlan ? (
+        <div className="bg-gradient-to-r from-brand-600 via-sky-600 to-indigo-700 text-white p-5 sm:p-6 rounded-3xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+          <div className="space-y-1.5 z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-bold text-sky-100">
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>جدول المذاكرة الذكي والتكيفي</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-black">
+              باقي {studyPlan.days_until_exam} يوم على الامتحان ({studyPlan.exam_date})
+            </h3>
+            <p className="text-xs text-sky-100 flex flex-wrap items-center gap-2">
+              <span>مهام اليوم: {todayPlan?.completed_tasks_today || 0} من {todayPlan?.total_tasks_today || 0} مكتملة</span>
+              <span>•</span>
+              <span>الإنجاز الإجمالي: {studyPlan.progress_percentage}%</span>
+              <span>•</span>
+              <span>الحد اليومي: {studyPlan.daily_time_limit} دقيقة</span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 z-10 shrink-0">
+            <Link
+              href="/planner"
+              className="px-5 py-2.5 sm:py-3 bg-white text-brand-700 hover:bg-brand-50 font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span>عرض جدول اليوم والتقويم</span>
+            </Link>
+          </div>
+
+          <div className="absolute left-0 bottom-0 top-0 w-1/3 bg-gradient-to-r from-transparent to-white/10 pointer-events-none" />
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-slate-50 to-brand-50/50 border border-brand-100 p-5 sm:p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                هل حددت موعد امتحانك القادم؟ 📅
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                فعّل جدول المذاكرة الذكي ليقوم بتوزيع الفصول والمفاهيم وجدولة الجلسات العلاجية تلقائياً.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/planner"
+            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>توليد الخطة الذكية</span>
+          </Link>
+        </div>
+      )}
 
       {/* Proposal 2: Jump Back In Card (استئناف المذاكرة من حيث توقفت) */}
       {lastMaterial && (

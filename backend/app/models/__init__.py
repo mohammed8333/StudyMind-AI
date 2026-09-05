@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.document import Document, DocumentChunk
 from app.models.quiz import Quiz, QuizQuestion, StudentSubmission, QuestionResponse
 from app.models.mastery import Concept, StudentMastery, RemedialSession
+from app.models.study_plan import StudyPlan, StudyPlanTask
 from app.models.chat import ChatMessage
 
 __all__ = [
@@ -17,5 +18,8 @@ __all__ = [
     "Concept",
     "StudentMastery",
     "RemedialSession",
+    "StudyPlan",
+    "StudyPlanTask",
     "ChatMessage",
 ]
+

@@ -533,6 +533,13 @@ async def grade_quiz_submission(
     await db.commit()
     await db.refresh(sub)
     
+    # Auto-adapt active study plan based on new quiz results
+    try:
+        from app.services.study_planner import sync_plan_with_student_performance
+        await sync_plan_with_student_performance(db, student_id)
+    except Exception as se:
+        logger.warning(f"Auto-sync study plan after quiz failed: {se}")
+    
     return QuizResultResponse(
         submission_id=sub.id,
         score=score,

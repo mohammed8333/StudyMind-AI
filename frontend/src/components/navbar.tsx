@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   BookOpen,
   BrainCircuit,
+  CalendarDays,
   ChevronLeft,
   GraduationCap,
   LayoutDashboard,
@@ -64,6 +65,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: "لوحة المتابعة", icon: LayoutDashboard },
+    { href: "/planner", label: "جدول المذاكرة الذكي", icon: CalendarDays },
     { href: "/library", label: "المكتبة والمذكرات", icon: BookOpen },
     { href: "/quizzes", label: "الاختبارات", icon: GraduationCap },
   ];

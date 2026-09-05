@@ -446,6 +446,13 @@ async def submit_remedial_session(
     await db.commit()
     await db.refresh(session)
 
+    # Auto-adapt active study plan based on remedial results
+    try:
+        from app.services.study_planner import sync_plan_with_student_performance
+        await sync_plan_with_student_performance(db, student_id)
+    except Exception as se:
+        logger.warning(f"Auto-sync study plan after remedial session failed: {se}")
+
     return RemedialResultResponse(
         session_id=session.id,
         concept_id=concept.id,
