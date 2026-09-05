@@ -18,10 +18,17 @@ class Settings(BaseSettings):
     SQLITE_FALLBACK_URL: str = f"sqlite+aiosqlite:///{BASE_DIR / 'studymind.db'}"
     USE_SQLITE_FALLBACK: bool = True
     
-    # Security
+    # Security & CORS
     SECRET_KEY: str = "studymind_super_secret_jwt_key_2026_dev_mode"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    DISABLE_RATE_LIMIT: bool = False
+
+    def get_cors_origins(self) -> list[str]:
+        if not self.ALLOWED_ORIGINS:
+            return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
     # AI Engine
     LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"

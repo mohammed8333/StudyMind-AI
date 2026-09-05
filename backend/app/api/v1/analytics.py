@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.user import User
+from app.models.document import Document
 from app.schemas.analytics import StudentAnalyticsResponse
 from app.api.deps import get_current_user
 from app.services.adaptive_engine import get_student_analytics
@@ -33,6 +34,14 @@ async def get_document_analytics(
     - Weak Concepts & Strong Concepts in this material
     - Document quizzes total and average score
     - Tailored revision plan for this book
+    Verifies that the document exists and belongs to the authenticated student (IDOR Protection).
     """
+    doc = await db.get(Document, document_id)
+    if not doc or doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود أو لا تملك صلاحية الوصول إليه."
+        )
+
     analytics = await get_student_analytics(db=db, student_id=user.id, document_id=document_id)
     return analytics

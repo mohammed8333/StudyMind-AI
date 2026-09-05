@@ -15,6 +15,7 @@ from app.schemas.tutor import (
     SourceCitation
 )
 from app.api.deps import get_current_user
+from app.core.rate_limiter import check_chat_rate_limit
 from app.services.rag_engine import generate_tutor_answer, generate_document_summary
 
 router = APIRouter()
@@ -27,8 +28,15 @@ async def get_chat_history(
 ):
     """
     Retrieve persistent chat conversation history specifically for this student account and document.
-    Ensures complete isolation: each account only accesses their own conversation!
+    Ensures complete isolation and checks document ownership (IDOR Protection).
     """
+    doc = await db.get(Document, document_id)
+    if not doc or doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود أو لا تملك صلاحية الوصول إليه."
+        )
+
     stmt = (
         select(ChatMessage)
         .where(
@@ -79,7 +87,14 @@ async def clear_chat_history(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Clear chat conversation history for this student and document."""
+    """Clear chat conversation history for this student and document (IDOR Protection)."""
+    doc = await db.get(Document, document_id)
+    if not doc or doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند غير موجود أو لا تملك صلاحية الوصول إليه."
+        )
+
     stmt = delete(ChatMessage).where(
         ChatMessage.user_id == user.id,
         ChatMessage.document_id == document_id
@@ -92,11 +107,12 @@ async def clear_chat_history(
 async def ask_tutor(
     req: TutorAskRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_chat_rate_limit)
 ):
     """
     Ask the AI Tutor a question about an uploaded study document.
-    Saves both student question and tutor response to this account's persistent history.
+    Protected with Rate Limiting and IDOR verification.
     """
     doc = await db.get(Document, req.document_id)
     if not doc or doc.owner_id != user.id:
@@ -158,7 +174,15 @@ async def get_document_summary_endpoint(
 ):
     """
     Generates a structured, pedagogical AI summary of the document.
+    Verifies document ownership to prevent IDOR data leaks.
     """
+    doc = await db.get(Document, document_id)
+    if not doc or doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستند المطلوب غير موجود أو لا تملك صلاحية الوصول إليه."
+        )
+
     res = await generate_document_summary(db=db, document_id=document_id)
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])

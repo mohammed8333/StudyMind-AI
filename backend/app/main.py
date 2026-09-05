@@ -19,12 +19,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS for Next.js frontend
+from app.core.middleware import SecurityHeadersMiddleware
+
+# Configure Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configure CORS with strict Allowlist from Settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows Next.js (http://localhost:3000) and mobile apps
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

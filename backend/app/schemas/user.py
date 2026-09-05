@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -8,7 +8,7 @@ class UserBase(BaseModel):
     grade_or_level: Optional[str] = None
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8, max_length=128, description="Password between 8 and 128 characters")
 
 class UserLogin(BaseModel):
     email: EmailStr

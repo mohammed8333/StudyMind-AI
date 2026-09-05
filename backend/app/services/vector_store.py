@@ -41,13 +41,17 @@ async def get_embedding(text: str) -> List[float]:
     # 1. Gemini Embeddings
     if provider == "gemini" and settings.GEMINI_API_KEY:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={settings.GEMINI_API_KEY}"
+            url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+            headers = {
+                "x-goog-api-key": settings.GEMINI_API_KEY,
+                "Content-Type": "application/json"
+            }
             payload = {
                 "model": "models/text-embedding-004",
                 "content": {"parts": [{"text": clean_text[:2048]}]}
             }
             async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.post(url, json=payload)
+                res = await client.post(url, headers=headers, json=payload)
                 if res.status_code == 200:
                     data = res.json()
                     return data.get("embedding", {}).get("values", [])

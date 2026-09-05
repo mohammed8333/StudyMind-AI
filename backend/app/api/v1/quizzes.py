@@ -16,6 +16,7 @@ from app.schemas.quiz import (
     DailyChallengeResponse
 )
 from app.api.deps import get_current_user
+from app.core.rate_limiter import check_quiz_rate_limit
 from app.services.quiz_generator import generate_quiz_for_document, grade_quiz_submission
 import json
 from typing import List, Optional
@@ -26,10 +27,12 @@ router = APIRouter()
 async def generate_quiz(
     req: QuizGenerateRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_quiz_rate_limit)
 ):
     """
     Generate an AI exam / quiz from the uploaded document, tagged with concepts and source pages.
+    Protected with Rate Limiting and IDOR verification.
     """
     doc = await db.get(Document, req.document_id)
     if not doc or doc.owner_id != user.id:
@@ -100,10 +103,18 @@ async def submit_quiz(
     """
     Submit student answers for automatic grading, instant justification,
     and adaptive learning concept mastery updates.
+    Verifies that the current student owns the quiz document (IDOR Protection).
     """
     quiz = await db.get(Quiz, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="الاختبار غير موجود.")
+        
+    doc = await db.get(Document, quiz.document_id)
+    if not doc or doc.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية لتسليم هذا الاختبار."
+        )
         
     result = await grade_quiz_submission(
         db=db,

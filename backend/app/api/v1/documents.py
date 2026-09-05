@@ -19,6 +19,7 @@ from app.schemas.document import (
     DocumentDeleteResponse,
 )
 from app.api.deps import get_current_user
+from app.core.rate_limiter import check_upload_rate_limit
 from app.services.pdf_extractor import process_and_chunk_pdf
 from app.services.vector_store import get_embedding
 from app.services.file_validator import validate_uploaded_file
@@ -34,7 +35,8 @@ async def upload_document(
     title: str = Form(...),
     subject: Optional[str] = Form(None),
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_upload_rate_limit)
 ):
     """
     Upload a study document (PDF, DOCX, TXT, JPG, PNG), validate its signatures,
@@ -221,7 +223,7 @@ async def update_document(
         clean_title = doc_in.title.strip()
         if not clean_title:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="عنوان المستند لا يمكن أن يكون فارغاً."
             )
         doc.title = clean_title

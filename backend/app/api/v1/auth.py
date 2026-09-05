@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.security import verify_password, get_password_hash, create_access_token, DUMMY_TIMING_HASH
+from app.core.rate_limiter import check_login_rate_limit, check_register_rate_limit
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, Token, UserResponse
 from app.api.deps import get_current_user
@@ -11,8 +12,12 @@ from app.api.deps import get_current_user
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Register a new student account."""
+async def register(
+    user_in: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_register_rate_limit)
+):
+    """Register a new student account with Rate Limiting protection."""
     stmt = select(User).where(User.email == user_in.email)
     res = await db.execute(stmt)
     if res.scalars().first():
@@ -35,18 +40,33 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_login_rate_limit)
 ):
-    """Login with username/email and password (OAuth2 Form)."""
+    """
+    Login with username/email and password (OAuth2 Form).
+    Protected against Rate-Limiting brute force and User Enumeration timing attacks.
+    """
     stmt = select(User).where(User.email == form_data.username)
     res = await db.execute(stmt)
     user = res.scalars().first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    
+    # Timing attack shield: run bcrypt verification against dummy hash if user does not exist
+    if not user:
+        verify_password(form_data.password, DUMMY_TIMING_HASH)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="بيانات الدخول غير صحيحة.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="بيانات الدخول غير صحيحة.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
     token = create_access_token(user.id)
     return Token(
         access_token=token,

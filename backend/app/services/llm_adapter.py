@@ -112,7 +112,11 @@ async def _try_gemini(
     if "gemini-3" in model:
         model = "gemini-1.5-flash"
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {
+        "x-goog-api-key": settings.GEMINI_API_KEY,
+        "Content-Type": "application/json"
+    }
     
     contents = []
     if system_instruction:
@@ -141,7 +145,7 @@ async def _try_gemini(
 
     try:
         async with httpx.AsyncClient(timeout=45.0) as client:
-            res = await client.post(url, json=payload)
+            res = await client.post(url, headers=headers, json=payload)
             if res.status_code == 200:
                 data = res.json()
                 candidates = data.get("candidates", [])
