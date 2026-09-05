@@ -18,6 +18,7 @@ import {
   FileText,
   GraduationCap,
   HelpCircle,
+  Layers,
   Lightbulb,
   Loader2,
   MessageSquare,
@@ -384,8 +385,8 @@ export default function MaterialDashboardPage() {
         </div>
       </div>
 
-      {/* The 3 Core Action Buttons requested by the user */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* The 4 Core Action Buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* 1. زرار للشات (المدرس الذكي) */}
         <Link
           href={`/study/${docId}`}
@@ -460,6 +461,31 @@ export default function MaterialDashboardPage() {
             <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           </div>
         </button>
+
+        {/* 4. زرار بطاقات التكرار المتباعد (Flashcards) */}
+        <Link
+          href={`/flashcards?document_id=${docId}`}
+          className="group p-6 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+        >
+          <div className="flex items-start justify-between">
+            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <Layers className="w-6 h-6" />
+            </div>
+            <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+              تكرار متباعد 🎴
+            </span>
+          </div>
+          <div className="mt-6">
+            <h3 className="text-lg font-bold">بطاقات الحفظ (Flashcards)</h3>
+            <p className="text-xs text-amber-100 mt-1 leading-relaxed">
+              تثبيت المفاهيم بخوارزمية SM-2 مع أولوية تلقائية ومراجعة مضاعفة لنقاط الضعف.
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-white/90">
+            <span>استعراض ومراجعة البطاقات</span>
+            <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          </div>
+        </Link>
       </div>
 
       {/* Quick Summary Metrics */}

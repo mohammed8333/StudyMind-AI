@@ -18,3 +18,4 @@ class User(Base):
     submissions = relationship("StudentSubmission", back_populates="student", cascade="all, delete-orphan")
     masteries = relationship("StudentMastery", back_populates="student", cascade="all, delete-orphan")
     study_plans = relationship("StudyPlan", back_populates="student", cascade="all, delete-orphan")
+    flashcards = relationship("Flashcard", back_populates="user", cascade="all, delete-orphan")

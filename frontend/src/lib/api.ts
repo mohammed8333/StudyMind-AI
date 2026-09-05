@@ -467,7 +467,229 @@ export const api = {
       return res.json();
     },
   },
+
+  flashcards: {
+    async generate(data: {
+      document_id: number;
+      count?: number;
+      card_types?: string[];
+      concept_id?: number;
+    }): Promise<Flashcard[]> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل توليد البطاقات التعليمية");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async getDashboard(): Promise<FlashcardsDashboardMetrics> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/dashboard`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب إحصائيات البطاقات التعليمية");
+      return res.json();
+    },
+
+    async getDue(limit = 50, documentId?: number): Promise<Flashcard[]> {
+      const url = new URL(`${API_BASE_URL}/flashcards/due`);
+      url.searchParams.append("limit", limit.toString());
+      if (documentId) url.searchParams.append("document_id", documentId.toString());
+      const res = await fetch(url.toString(), {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب البطاقات المستحقة للمراجعة");
+      return res.json();
+    },
+
+    async list(params: {
+      document_id?: number;
+      card_type?: string;
+      review_state?: string;
+      is_favorite?: boolean;
+      is_suspended?: boolean;
+      search?: string;
+      page?: number;
+      page_size?: number;
+    } = {}): Promise<FlashcardListResponse> {
+      const url = new URL(`${API_BASE_URL}/flashcards`);
+      if (params.document_id) url.searchParams.append("document_id", params.document_id.toString());
+      if (params.card_type) url.searchParams.append("card_type", params.card_type);
+      if (params.review_state) url.searchParams.append("review_state", params.review_state);
+      if (params.is_favorite !== undefined) url.searchParams.append("is_favorite", params.is_favorite.toString());
+      if (params.is_suspended !== undefined) url.searchParams.append("is_suspended", params.is_suspended.toString());
+      if (params.search) url.searchParams.append("search", params.search);
+      if (params.page) url.searchParams.append("page", params.page.toString());
+      if (params.page_size) url.searchParams.append("page_size", params.page_size.toString());
+
+      const res = await fetch(url.toString(), {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب قائمة البطاقات");
+      return res.json();
+    },
+
+    async create(data: {
+      document_id: number;
+      front: string;
+      back: string;
+      card_type?: string;
+      difficulty?: string;
+      source_page?: number;
+      source_section?: string;
+      concept_id?: number;
+      concept_name?: string;
+    }): Promise<Flashcard> {
+      const res = await fetch(`${API_BASE_URL}/flashcards`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إنشاء البطاقة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async get(cardId: number): Promise<Flashcard> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("البطاقة غير موجودة");
+      return res.json();
+    },
+
+    async update(cardId: number, data: Partial<Flashcard>): Promise<Flashcard> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تعديل البطاقة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async delete(cardId: number): Promise<{ success: boolean; message: string }> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل حذف البطاقة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async review(cardId: number, rating: "again" | "hard" | "good" | "easy"): Promise<FlashcardReviewResponse> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}/review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ rating }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل تسجيل تقييم البطاقة");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async toggleFavorite(cardId: number): Promise<Flashcard> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}/favorite`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل تبديل حالة المفضلة");
+      return res.json();
+    },
+
+    async toggleSuspend(cardId: number): Promise<Flashcard> {
+      const res = await fetch(`${API_BASE_URL}/flashcards/${cardId}/suspend`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل تبديل حالة التعليق");
+      return res.json();
+    },
+  },
 };
+
+export interface Flashcard {
+  id: number;
+  user_id: number;
+  document_id: number;
+  document_title?: string | null;
+  concept_id?: number | null;
+  concept_name?: string | null;
+  front: string;
+  back: string;
+  card_type: "definition" | "concept" | "formula" | "fact" | "qa";
+  card_type_label: string;
+  difficulty: "easy" | "medium" | "hard";
+  source_page?: number | null;
+  source_section?: string | null;
+  is_suspended: boolean;
+  is_favorite: boolean;
+  repetition_count: number;
+  ease_factor: number;
+  interval_days: number;
+  next_review_at: string;
+  last_reviewed_at?: string | null;
+  review_state: "new" | "learning" | "review" | "mastered";
+  is_due: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlashcardListResponse {
+  items: Flashcard[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface FlashcardsDashboardMetrics {
+  due_today: number;
+  new_cards: number;
+  learning: number;
+  mastered: number;
+  total_cards: number;
+  favorites_count: number;
+  suspended_count: number;
+  retention_rate: number;
+}
+
+export interface FlashcardReviewResponse {
+  card: Flashcard;
+  rating: "again" | "hard" | "good" | "easy";
+  next_review_at: string;
+  interval_days: number;
+  ease_factor: number;
+  review_state: string;
+  concept_mastery_updated: boolean;
+  new_mastery_score?: number | null;
+  message: string;
+}
 
 export interface StudyPlanTask {
   id: number;
