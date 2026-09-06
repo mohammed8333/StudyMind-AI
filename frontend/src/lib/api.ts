@@ -1,9 +1,23 @@
 function getApiBaseUrl(): string {
-  let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  let url =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8000/api/v1";
+
   url = url.trim().replace(/\/+$/, "");
+
+  // Production: automatically add HTTPS if a hostname was provided
+  // without a protocol.
+  if (
+    !url.startsWith("http://") &&
+    !url.startsWith("https://")
+  ) {
+    url = `https://${url}`;
+  }
+
   if (!url.endsWith("/api/v1")) {
     url = `${url}/api/v1`;
   }
+
   return url;
 }
 
