@@ -64,7 +64,7 @@ cd backend
 venv\Scripts\activate  # أو source venv/bin/activate على Linux/Mac
 
 # تشغيل السيرفر
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 * رابط التوثيق التفاعلي للـ API (Swagger UI): `http://localhost:8000/docs`
 

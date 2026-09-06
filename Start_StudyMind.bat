@@ -6,7 +6,7 @@ echo           Starting StudyMind AI Platform
 echo ========================================================
 echo.
 echo [1/3] Starting Backend Server (FastAPI + AI Engine)...
-start "StudyMind-Backend" cmd /k "cd /d %~dp0backend && venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
+start "StudyMind-Backend" cmd /k "cd /d %~dp0backend && venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 ping 127.0.0.1 -n 4 > nul
 

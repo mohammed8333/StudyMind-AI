@@ -1,6 +1,9 @@
 import os
 import logging
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz
+except ImportError:
+    import fitz  # PyMuPDF fallback
 from typing import List, Dict, Any, Tuple, Optional, Callable
 from app.core.config import settings
 from app.services.arabic_nlp import chunk_arabic_document, normalize_ocr_arabic_text

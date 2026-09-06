@@ -58,7 +58,8 @@ async def init_db():
             # 1. Safely check / enable pgvector in an isolated autocommit connection
             try:
                 async with engine.connect() as ext_conn:
-                    await ext_conn.execution_options(isolation_level="AUTOCOMMIT").execute(
+                    autocommit_conn = await ext_conn.execution_options(isolation_level="AUTOCOMMIT")
+                    await autocommit_conn.execute(
                         text("CREATE EXTENSION IF NOT EXISTS vector;")
                     )
                     logger.info("pgvector extension enabled or already present.")
