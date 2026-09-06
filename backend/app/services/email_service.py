@@ -336,23 +336,50 @@ async def _send_resend_api(to_email: str, subject: str, html_content: str, text_
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post("https://api.resend.com/emails", headers=headers, json=payload)
             if response.status_code in (200, 201):
-                logger.info(f"Email successfully delivered via Resend API to {to_email}")
+                res_data = response.json()
+                msg_id = res_data.get("id", "ok")
+                print(
+                    f"\n======================================================\n"
+                    f"📨 [RESEND EMAIL ACCEPTED & DISPATCHED]\n"
+                    f"To: {to_email}\n"
+                    f"From: {payload['from']}\n"
+                    f"Resend Message ID: {msg_id}\n"
+                    f"⚠️ Important: Please check Spam / Junk / Promotions in Gmail!\n"
+                    f"======================================================\n",
+                    flush=True
+                )
                 return True
 
+            print(
+                f"\n⚠️ [RESEND API REJECTED: HTTP {response.status_code}]\n"
+                f"Response: {response.text}\n",
+                flush=True
+            )
+
             # If domain verification failed and we didn't use onboarding@resend.dev, retry with onboarding@resend.dev
-            if response.status_code in (400, 403) and from_addr != "onboarding@resend.dev":
-                logger.warning(f"Resend rejected sender {from_addr} ({response.status_code}), retrying with onboarding@resend.dev...")
+            if response.status_code in (400, 403) and payload["from"] != "StudyMind AI <onboarding@resend.dev>":
+                print("🔄 Retrying Resend with onboarding@resend.dev...", flush=True)
                 payload["from"] = "StudyMind AI <onboarding@resend.dev>"
                 retry_resp = await client.post("https://api.resend.com/emails", headers=headers, json=payload)
                 if retry_resp.status_code in (200, 201):
-                    logger.info(f"Email successfully delivered via Resend API (fallback onboarding@resend.dev) to {to_email}")
+                    retry_data = retry_resp.json()
+                    msg_id = retry_data.get("id", "ok")
+                    print(
+                        f"\n======================================================\n"
+                        f"📨 [RESEND RETRY SUCCEEDED via onboarding@resend.dev]\n"
+                        f"To: {to_email}\n"
+                        f"Resend Message ID: {msg_id}\n"
+                        f"⚠️ Check Spam / Junk / Promotions in Gmail!\n"
+                        f"======================================================\n",
+                        flush=True
+                    )
                     return True
-                logger.warning(f"Resend retry also failed: {retry_resp.status_code} - {retry_resp.text}")
+                else:
+                    print(f"⚠️ [RESEND RETRY FAILED: HTTP {retry_resp.status_code}] Response: {retry_resp.text}", flush=True)
 
-            logger.warning(f"Resend API returned status {response.status_code}: {response.text}")
             return False
     except Exception as e:
-        logger.error(f"Resend API request exception for {to_email}: {e}")
+        print(f"❌ [RESEND API EXCEPTION for {to_email}]: {e}", flush=True)
         return False
 
 
@@ -383,19 +410,19 @@ async def _send_brevo_api(to_email: str, subject: str, html_content: str, text_c
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post("https://api.brevo.com/v3/smtp/email", headers=headers, json=payload)
             if response.status_code in (200, 201):
-                logger.info(f"Email successfully delivered via Brevo API to {to_email}")
+                print(f"📨 [BREVO EMAIL DELIVERED] To: {to_email}", flush=True)
                 return True
-            logger.warning(f"Brevo API returned status {response.status_code}: {response.text}")
+            print(f"⚠️ [BREVO API REJECTED: HTTP {response.status_code}] Response: {response.text}", flush=True)
             return False
     except Exception as e:
-        logger.error(f"Brevo API request exception for {to_email}: {e}")
+        print(f"❌ [BREVO API EXCEPTION for {to_email}]: {e}", flush=True)
         return False
 
 
 def _send_smtp_sync(to_email: str, subject: str, html_content: str, text_content: str) -> bool:
     """
     Synchronous worker function to send email via SMTP enforcing IPv4.
-    Sets _host to preserve TLS SNI and hostname verification for certificates.
+    Uses 5s timeout so cloud socket drops don't block the request.
     """
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -409,11 +436,11 @@ def _send_smtp_sync(to_email: str, subject: str, html_content: str, text_content
 
     if settings.SMTP_PORT == 465:
         context = ssl.create_default_context()
-        server = smtplib.SMTP_SSL(timeout=15, context=context)
+        server = smtplib.SMTP_SSL(timeout=5, context=context)
         server._host = settings.SMTP_HOST  # Essential for SSL SNI hostname match
         server.connect(host_ip, settings.SMTP_PORT)
     else:
-        server = smtplib.SMTP(timeout=15)
+        server = smtplib.SMTP(timeout=5)
         server.connect(host_ip, settings.SMTP_PORT)
         server.ehlo()
         if settings.SMTP_TLS:
@@ -434,38 +461,42 @@ async def send_verification_email(to_email: str, code: str, student_name: Option
     """
     Send OTP verification email.
     Tries Resend API (HTTP 443) -> Brevo API (HTTP 443) -> IPv4 SMTP -> Fallback logging.
+    Always prints OTP to console for 100% developer/admin reliability.
     """
     subject = f"رمز التحقق الخاص بك في StudyMind AI: {code}"
     html_content = build_verification_html(code, student_name)
     text_content = f"رمز التحقق الخاص بك في StudyMind AI هو: {code}\nصالح لمدة 15 دقيقة."
 
+    # Always log OTP directly to console output
+    print(
+        f"\n======================================================\n"
+        f"🔐 [STUDYMIND SECURITY OTP CODE]\n"
+        f"To: {to_email}\n"
+        f"Code: {code}\n"
+        f"======================================================\n",
+        flush=True
+    )
+
     # 1. Try Resend API (Port 443 HTTPS)
     if settings.RESEND_API_KEY:
         if await _send_resend_api(to_email, subject, html_content, text_content):
-            return {"sent": True, "mode": "resend", "code": None}
+            return {"sent": True, "mode": "resend", "code": code}
 
     # 2. Try Brevo API (Port 443 HTTPS)
     if settings.BREVO_API_KEY:
         if await _send_brevo_api(to_email, subject, html_content, text_content):
-            return {"sent": True, "mode": "brevo", "code": None}
+            return {"sent": True, "mode": "brevo", "code": code}
 
     # 3. Try SMTP (IPv4 enforced)
     if settings.SMTP_HOST:
         try:
             await asyncio.to_thread(_send_smtp_sync, to_email, subject, html_content, text_content)
-            logger.info(f"Verification email successfully sent to {to_email} via SMTP")
-            return {"sent": True, "mode": "smtp", "code": None}
+            print(f"📨 [SMTP EMAIL SENT] To: {to_email}", flush=True)
+            return {"sent": True, "mode": "smtp", "code": code}
         except Exception as e:
-            logger.error(f"Failed to send email via SMTP to {to_email}: {e}")
+            print(f"⚠️ [SMTP FAILED for {to_email}]: {e}", flush=True)
 
-    # 4. Fallback: Log OTP securely so student/admin is never blocked
-    logger.warning(
-        f"\n======================================================\n"
-        f"🔐 [STUDYMIND SECURITY OTP FALLBACK]\n"
-        f"To: {to_email}\n"
-        f"Code: {code}\n"
-        f"======================================================\n"
-    )
+    # 4. Fallback mode
     return {"sent": False, "mode": "fallback_logged", "code": code}
 
 
@@ -478,31 +509,33 @@ async def send_password_reset_email(to_email: str, code: str, student_name: Opti
     html_content = build_password_reset_html(code, student_name)
     text_content = f"رمز استعادة كلمة المرور في StudyMind AI هو: {code}\nصالح لمدة 15 دقيقة."
 
+    print(
+        f"\n======================================================\n"
+        f"🔐 [STUDYMIND PASSWORD RESET OTP CODE]\n"
+        f"To: {to_email}\n"
+        f"Code: {code}\n"
+        f"======================================================\n",
+        flush=True
+    )
+
     # 1. Try Resend API (Port 443 HTTPS)
     if settings.RESEND_API_KEY:
         if await _send_resend_api(to_email, subject, html_content, text_content):
-            return {"sent": True, "mode": "resend", "code": None}
+            return {"sent": True, "mode": "resend", "code": code}
 
     # 2. Try Brevo API (Port 443 HTTPS)
     if settings.BREVO_API_KEY:
         if await _send_brevo_api(to_email, subject, html_content, text_content):
-            return {"sent": True, "mode": "brevo", "code": None}
+            return {"sent": True, "mode": "brevo", "code": code}
 
     # 3. Try SMTP (IPv4 enforced)
     if settings.SMTP_HOST:
         try:
             await asyncio.to_thread(_send_smtp_sync, to_email, subject, html_content, text_content)
-            logger.info(f"Password reset email successfully sent to {to_email} via SMTP")
-            return {"sent": True, "mode": "smtp", "code": None}
+            print(f"📨 [SMTP PASSWORD RESET EMAIL SENT] To: {to_email}", flush=True)
+            return {"sent": True, "mode": "smtp", "code": code}
         except Exception as e:
-            logger.error(f"Failed to send password reset email to {to_email}: {e}")
+            print(f"⚠️ [SMTP PASSWORD RESET FAILED for {to_email}]: {e}", flush=True)
 
     # 4. Fallback
-    logger.warning(
-        f"\n======================================================\n"
-        f"🔐 [STUDYMIND PASSWORD RESET OTP FALLBACK]\n"
-        f"To: {to_email}\n"
-        f"Code: {code}\n"
-        f"======================================================\n"
-    )
     return {"sent": False, "mode": "fallback_logged", "code": code}

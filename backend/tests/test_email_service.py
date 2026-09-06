@@ -27,4 +27,4 @@ async def test_email_via_resend_mock():
             res = await send_verification_email('student@example.com', '999888', 'Sarah')
             assert res['sent'] is True
             assert res['mode'] == 'resend'
-            assert res['code'] is None
+            assert res['code'] == '999888'
