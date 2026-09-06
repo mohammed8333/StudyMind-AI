@@ -28,6 +28,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # 6. CSP for API responses (exempt OpenAPI /docs so Swagger UI CDN assets load)
         path = request.url.path
         if not (path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc")):
-            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' data: https://fonts.gstatic.com; "
+                "frame-ancestors 'none';"
+            )
             
         return response

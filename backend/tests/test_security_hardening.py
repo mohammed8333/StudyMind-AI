@@ -296,7 +296,9 @@ async def test_security_headers_present():
         assert headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
         assert "camera=()" in headers.get("Permissions-Policy", "")
         assert headers.get("X-XSS-Protection") == "0"
-        assert "default-src 'none'" in headers.get("Content-Security-Policy", "")
+        csp = headers.get("Content-Security-Policy", "")
+        assert "https://fonts.googleapis.com" in csp
+        assert "https://fonts.gstatic.com" in csp
 
 @pytest.mark.asyncio
 async def test_cors_allowlist_enforced():
@@ -312,15 +314,31 @@ async def test_cors_allowlist_enforced():
         )
         assert allowed_res.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
-        # 2. Disallowed origin (evil-site.com)
-        disallowed_res = await ac.options(
-            "/api/v1/auth/login",
+        # 2. Production origin (https://study.egypttravelportal.com)
+        prod_res = await ac.options(
+            "/api/v1/auth/register",
             headers={
-                "Origin": "http://evil-site.com",
-                "Access-Control-Request-Method": "POST"
+                "Origin": "https://study.egypttravelportal.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type"
             }
         )
-        assert disallowed_res.headers.get("access-control-allow-origin") is None
+        assert prod_res.status_code in [200, 204]
+        assert prod_res.headers.get("access-control-allow-origin") == "https://study.egypttravelportal.com"
+        assert "POST" in prod_res.headers.get("access-control-allow-methods", "")
+        assert "content-type" in prod_res.headers.get("access-control-allow-headers", "").lower()
+        assert prod_res.headers.get("access-control-allow-credentials") == "true"
+
+        # 3. Disallowed origin (evil-site.com) returns 400 or no allow-origin
+        disallowed_res = await ac.options(
+            "/api/v1/auth/register",
+            headers={
+                "Origin": "http://evil-site.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type"
+            }
+        )
+        assert disallowed_res.status_code == 400 or disallowed_res.headers.get("access-control-allow-origin") is None
 
 # -------------------------------------------------------------
 # 5. User Profile Update & Password Change Tests

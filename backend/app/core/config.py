@@ -22,13 +22,22 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "studymind_super_secret_jwt_key_2026_dev_mode"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://study.egypttravelportal.com"
     DISABLE_RATE_LIMIT: bool = False
 
     def get_cors_origins(self) -> list[str]:
+        default_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://study.egypttravelportal.com",
+        ]
         if not self.ALLOWED_ORIGINS:
-            return ["http://localhost:3000", "http://127.0.0.1:3000"]
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+            return default_origins
+        origins = [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        for d in default_origins:
+            if d not in origins:
+                origins.append(d)
+        return origins
     
     # AI Engine
     LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"
