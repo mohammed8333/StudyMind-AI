@@ -1,4 +1,4 @@
-﻿# Environment files and secrets (NEVER commit secrets!)
+# Environment files and secrets (NEVER commit secrets!)
 .env
 .env.local
 .env.*.local
@@ -23,10 +23,14 @@ backend/env/
 
 # Databases & local uploads
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
 studymind.db
 backend/studymind.db
 backend/studymind.db-journal
+backend/studymind.db-shm
+backend/studymind.db-wal
 uploads/*
 !uploads/.gitkeep
 backend/uploads/*

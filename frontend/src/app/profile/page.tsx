@@ -87,11 +87,11 @@ export default function ProfilePage() {
     }
   };
 
-  const totalDocs = analytics?.total_docs ?? 0;
-  const totalQuizzes = analytics?.total_quizzes ?? 0;
-  const totalQuestions = analytics?.total_questions ?? 0;
-  const avgScore = analytics?.avg_score ?? 0;
-  const streakDays = analytics?.streak_days ?? 1;
+  const totalDocs = analytics?.total_documents ?? 0;
+  const totalQuizzes = analytics?.total_quizzes_taken ?? 0;
+  const totalQuestions = analytics?.total_questions_answered ?? 0;
+  const avgScore = analytics?.average_score ?? 0;
+  const streakDays = analytics?.streak_days ?? (totalDocs > 0 ? 1 : 0);
 
   const getUnderstandingInsight = () => {
     if (totalQuizzes === 0) {

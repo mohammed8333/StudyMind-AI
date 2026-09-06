@@ -11,6 +11,7 @@ from app.core.config import settings
 import logging
 from app.models.user import User
 from app.models.document import Document, DocumentChunk
+from app.models.mastery import Concept
 from app.schemas.document import (
     DocumentResponse,
     DocumentDetailResponse,
@@ -176,6 +177,11 @@ async def get_document(
     chunk_res = await db.execute(chunk_count_stmt)
     chunks_count = chunk_res.scalar() or 0
     
+    # Count concepts
+    concept_count_stmt = select(func.count(Concept.id)).where(Concept.document_id == doc.id)
+    concept_res = await db.execute(concept_count_stmt)
+    concepts_count = concept_res.scalar() or 0
+    
     return DocumentDetailResponse(
         id=doc.id,
         title=doc.title,
@@ -187,7 +193,7 @@ async def get_document(
         error_message=doc.error_message,
         created_at=doc.created_at,
         chunks_count=chunks_count,
-        concepts_count=0
+        concepts_count=concepts_count
     )
 
 @router.get("/{document_id}/chunks", response_model=List[DocumentChunkResponse])

@@ -28,6 +28,7 @@ from app.services.exam_service import (
 )
 from datetime import datetime
 import json
+from app.core.rate_limiter import check_exam_rate_limit
 
 router = APIRouter()
 
@@ -35,7 +36,8 @@ router = APIRouter()
 async def generate_exam_endpoint(
     req: ExamGenerateRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_exam_rate_limit)
 ):
     """
     Generate an AI Exam strictly grounded in document content.

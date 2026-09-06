@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token, DUMMY_TIMING_HASH
 from app.core.rate_limiter import check_login_rate_limit, check_register_rate_limit
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, Token, UserResponse
+from app.schemas.user import UserCreate, UserLogin, Token, UserResponse, UserUpdate, ChangePasswordRequest
 from app.api.deps import get_current_user
 
 router = APIRouter()
@@ -80,6 +80,43 @@ async def login(
 async def get_current_student(user: User = Depends(get_current_user)):
     """Get profile details of the authenticated student."""
     return user
+
+@router.patch("/me", response_model=UserResponse)
+async def update_my_profile(
+    user_in: UserUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update profile details (name, grade level) of the authenticated student."""
+    if user_in.full_name is not None:
+        user.full_name = user_in.full_name.strip()
+    if user_in.grade_or_level is not None:
+        user.grade_or_level = user_in.grade_or_level.strip()
+        
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_my_password(
+    req: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Change the authenticated student's password after verifying the current password."""
+    if not verify_password(req.current_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="كلمة المرور الحالية غير صحيحة."
+        )
+    if req.new_password == req.current_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية."
+        )
+    user.hashed_password = get_password_hash(req.new_password)
+    await db.commit()
+    return {"message": "تم تغيير كلمة المرور بنجاح."}
 
 @router.delete("/me", status_code=status.HTTP_200_OK)
 async def delete_my_account(

@@ -8,6 +8,20 @@ const nextConfig = {
     }
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/login',
+        destination: '/',
+        permanent: false,
+      },
+      {
+        source: '/register',
+        destination: '/',
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -19,7 +33,7 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 ws: wss:; frame-ancestors 'none';"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https: http: ws: wss:; frame-ancestors 'none';"
           }
         ],
       },

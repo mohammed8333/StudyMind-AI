@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime
 
 class QuizGenerateRequest(BaseModel):
     document_id: int
@@ -68,7 +69,7 @@ class QuizHistoryItem(BaseModel):
     percentage: float
     passed: bool
     time_taken_seconds: int
-    submitted_at: Any
+    submitted_at: Optional[Union[datetime, str]] = None
 
 class DailyChallengeResponse(BaseModel):
     question_id: int

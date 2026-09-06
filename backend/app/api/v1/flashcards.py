@@ -8,7 +8,8 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.models.user import User
 from app.models.flashcard import Flashcard
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user
+from app.core.rate_limiter import check_flashcard_rate_limit
 from app.schemas.flashcard import (
     FlashcardCreate,
     FlashcardUpdate,
@@ -41,7 +42,8 @@ router = APIRouter()
 async def generate_cards(
     req: FlashcardGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _rate_limit: None = Depends(check_flashcard_rate_limit)
 ):
     """
     Generates flashcards strictly grounded in document text with zero hallucination.

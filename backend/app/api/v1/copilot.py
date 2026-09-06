@@ -6,6 +6,7 @@ import json
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
+from app.core.rate_limiter import check_chat_rate_limit
 from app.models.user import User
 from app.models.copilot import CopilotMessage
 from app.schemas.copilot import (
@@ -68,7 +69,8 @@ async def get_daily_briefing_endpoint(
 async def copilot_chat_endpoint(
     req: CopilotChatRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_chat_rate_limit)
 ):
     """
     Interacts with the AI Learning Copilot. Automatically separates student state

@@ -16,5 +16,6 @@ class ChatMessage(Base):
     suggested_followups_json = Column(Text, nullable=True) # JSON list of strings
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     
-    user = relationship("User")
-    document = relationship("Document")
+    user = relationship("User", back_populates="chat_messages")
+    document = relationship("Document", back_populates="chat_messages")
+

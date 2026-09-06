@@ -33,11 +33,12 @@ def clean_think_tags(text: str) -> str:
     return cleaned if cleaned else text
 
 async def _try_groq(
-    prompt: str,
+    prompt: Optional[str],
     system_instruction: Optional[str],
     json_mode: bool,
     temperature: float,
-    max_tokens: int
+    max_tokens: int,
+    messages_list: Optional[List[Dict[str, str]]] = None
 ) -> Optional[str]:
     """Tries Groq models with automatic fallback across the model pool if 404 or 429 occurs."""
     if not settings.GROQ_API_KEY:
@@ -49,10 +50,15 @@ async def _try_groq(
         "Content-Type": "application/json"
     }
 
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
+    if messages_list:
+        messages = list(messages_list)
+        if system_instruction and not any(m.get("role") == "system" for m in messages):
+            messages.insert(0, {"role": "system", "content": system_instruction})
+    else:
+        messages = []
+        if system_instruction:
+            messages.append({"role": "system", "content": system_instruction})
+        messages.append({"role": "user", "content": prompt or ""})
 
     # Prepare prioritized models: configured GROQ_MODEL first, followed by available pool
     models_to_try = []
@@ -98,11 +104,12 @@ async def _try_groq(
     return None
 
 async def _try_gemini(
-    prompt: str,
+    prompt: Optional[str],
     system_instruction: Optional[str],
     json_mode: bool,
     temperature: float,
-    max_tokens: int
+    max_tokens: int,
+    messages_list: Optional[List[Dict[str, str]]] = None
 ) -> Optional[str]:
     """Calls Google Gemini API with valid models and token limits."""
     if not settings.GEMINI_API_KEY:
@@ -128,10 +135,18 @@ async def _try_gemini(
             "role": "model",
             "parts": [{"text": "مفهوم، أنا جاهز للشرح والتدريس للطالب باللغة العربية بحسب التعليمات بدقة."}]
         })
-    contents.append({
-        "role": "user",
-        "parts": [{"text": prompt}]
-    })
+    if messages_list:
+        for m in messages_list:
+            role = "user" if m.get("role") in ["user", "system"] else "model"
+            contents.append({
+                "role": role,
+                "parts": [{"text": m.get("content", "")}]
+            })
+    else:
+        contents.append({
+            "role": "user",
+            "parts": [{"text": prompt or ""}]
+        })
 
     payload: Dict[str, Any] = {
         "contents": contents,
@@ -161,21 +176,27 @@ async def _try_gemini(
     return None
 
 async def _try_openrouter(
-    prompt: str,
+    prompt: Optional[str],
     system_instruction: Optional[str],
     json_mode: bool,
     temperature: float,
-    max_tokens: int
+    max_tokens: int,
+    messages_list: Optional[List[Dict[str, str]]] = None
 ) -> Optional[str]:
     """Calls OpenRouter free / community models."""
     if not settings.OPENROUTER_API_KEY:
         return None
 
     url = "https://openrouter.ai/api/v1/chat/completions"
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
+    if messages_list:
+        messages = list(messages_list)
+        if system_instruction and not any(m.get("role") == "system" for m in messages):
+            messages.insert(0, {"role": "system", "content": system_instruction})
+    else:
+        messages = []
+        if system_instruction:
+            messages.append({"role": "system", "content": system_instruction})
+        messages.append({"role": "user", "content": prompt or ""})
 
     payload: Dict[str, Any] = {
         "model": settings.OPENROUTER_MODEL,
@@ -205,16 +226,21 @@ async def _try_openrouter(
     return None
 
 async def _try_ollama(
-    prompt: str,
+    prompt: Optional[str],
     system_instruction: Optional[str],
     json_mode: bool,
-    temperature: float
+    temperature: float,
+    messages_list: Optional[List[Dict[str, str]]] = None
 ) -> Optional[str]:
     """Calls local Ollama API."""
     url = f"{settings.OLLAMA_BASE_URL}/api/generate"
+    effective_prompt = prompt or ""
+    if messages_list:
+        effective_prompt = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages_list])
+
     payload = {
         "model": settings.OLLAMA_MODEL,
-        "prompt": prompt,
+        "prompt": effective_prompt,
         "system": system_instruction or "",
         "stream": False,
         "options": {"temperature": temperature}
@@ -233,48 +259,54 @@ async def _try_ollama(
     return None
 
 async def call_llm(
-    prompt: str,
+    prompt: Optional[str] = None,
     system_instruction: Optional[str] = None,
     json_mode: bool = False,
     temperature: float = 0.2,
-    max_tokens: int = 1500
+    max_tokens: int = 1500,
+    messages: Optional[List[Dict[str, str]]] = None,
+    system_prompt: Optional[str] = None,
 ) -> str:
     """
     Unified LLM call supporting:
+    - Single prompt string or multi-turn messages array
     - Groq (with automatic multi-model resilient fallback cascade)
     - Google Gemini API (with auto-failover)
     - OpenRouter (Free community models)
     - Local Ollama
     """
+    effective_system = system_instruction or system_prompt
+    effective_prompt = prompt or (messages[-1]["content"] if messages and len(messages) > 0 else "")
+
     provider = settings.LLM_PROVIDER.lower()
 
     # Step 1: Attempt primary configured provider
     result: Optional[str] = None
     if provider == "groq":
-        result = await _try_groq(prompt, system_instruction, json_mode, temperature, max_tokens)
+        result = await _try_groq(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
         if not result and settings.GEMINI_API_KEY:
             logger.info("Groq unavailable, failing over to Gemini...")
-            result = await _try_gemini(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_gemini(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
     elif provider == "gemini":
-        result = await _try_gemini(prompt, system_instruction, json_mode, temperature, max_tokens)
+        result = await _try_gemini(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
         if not result and settings.GROQ_API_KEY:
             logger.info("Gemini unavailable, failing over to Groq...")
-            result = await _try_groq(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_groq(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
     elif provider == "openrouter":
-        result = await _try_openrouter(prompt, system_instruction, json_mode, temperature, max_tokens)
+        result = await _try_openrouter(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
         if not result and settings.GROQ_API_KEY:
-            result = await _try_groq(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_groq(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
     elif provider == "ollama":
-        result = await _try_ollama(prompt, system_instruction, json_mode, temperature)
+        result = await _try_ollama(effective_prompt, effective_system, json_mode, temperature, messages_list=messages)
 
     # Step 2: If primary didn't succeed, try any other configured provider
     if not result:
         if settings.GROQ_API_KEY and provider != "groq":
-            result = await _try_groq(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_groq(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
         if not result and settings.GEMINI_API_KEY and provider != "gemini":
-            result = await _try_gemini(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_gemini(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
         if not result and settings.OPENROUTER_API_KEY and provider != "openrouter":
-            result = await _try_openrouter(prompt, system_instruction, json_mode, temperature, max_tokens)
+            result = await _try_openrouter(effective_prompt, effective_system, json_mode, temperature, max_tokens, messages_list=messages)
 
     if result:
         return result

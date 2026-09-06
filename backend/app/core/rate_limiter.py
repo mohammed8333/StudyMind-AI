@@ -23,6 +23,8 @@ class SlidingWindowRateLimiter:
             "ai_chat": (30, 60),          # 30 chat messages / 60 seconds per user
             "quiz_generate": (10, 60),    # 10 quiz gens / 60 seconds per user
             "exam_generate": (5, 60),     # 5 exam gens / 60 seconds per user
+            "flashcard_generate": (10, 60), # 10 flashcard gens / 60 seconds per user
+            "remedial_generate": (15, 60),  # 15 remedial sessions / 60 seconds per user
             "default": (120, 60),         # 120 requests / 60 seconds general
         }
 
@@ -109,3 +111,12 @@ async def check_chat_rate_limit(request: Request, user: User = Depends(get_curre
 
 async def check_quiz_rate_limit(request: Request, user: User = Depends(get_current_user)) -> None:
     rate_limiter.check(request, category="quiz_generate", user_id=user.id)
+
+async def check_exam_rate_limit(request: Request, user: User = Depends(get_current_user)) -> None:
+    rate_limiter.check(request, category="exam_generate", user_id=user.id)
+
+async def check_flashcard_rate_limit(request: Request, user: User = Depends(get_current_user)) -> None:
+    rate_limiter.check(request, category="flashcard_generate", user_id=user.id)
+
+async def check_remedial_rate_limit(request: Request, user: User = Depends(get_current_user)) -> None:
+    rate_limiter.check(request, category="remedial_generate", user_id=user.id)

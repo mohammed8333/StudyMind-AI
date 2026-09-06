@@ -100,7 +100,7 @@ function FlashcardSessionContent() {
   useEffect(() => {
     const token = localStorage.getItem("studymind_token");
     if (!token) {
-      router.push("/login");
+      router.replace("/");
       return;
     }
     loadDueCards();

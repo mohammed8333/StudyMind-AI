@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.user import User
 from app.api.deps import get_current_user
+from app.core.rate_limiter import check_remedial_rate_limit
 from app.schemas.learning import (
     RemedialSessionResponse,
     RemedialSubmitRequest,
@@ -22,7 +23,8 @@ router = APIRouter()
 async def start_remedial_session(
     concept_id: int,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(check_remedial_rate_limit)
 ):
     """
     Start a tailored closed-loop remedial session for a specific weak concept.

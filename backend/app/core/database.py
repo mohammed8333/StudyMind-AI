@@ -1,6 +1,7 @@
 import logging
 from typing import AsyncGenerator
-from sqlalchemy import text
+from sqlalchemy import text, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
@@ -26,6 +27,16 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False, "timeout": 30.0} if is_sqlite else {}
 )
 
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enforces foreign key constraint checks on SQLite connections."""
+    try:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON;")
+        cursor.close()
+    except Exception:
+        pass
+
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -50,6 +61,7 @@ async def init_db():
                 try:
                     await conn.execute(text("PRAGMA journal_mode=WAL;"))
                     await conn.execute(text("PRAGMA busy_timeout=30000;"))
+                    await conn.execute(text("PRAGMA foreign_keys=ON;"))
                 except Exception:
                     pass
             await conn.run_sync(Base.metadata.create_all)
@@ -96,6 +108,7 @@ async def init_db():
                 try:
                     await conn.execute(text("PRAGMA journal_mode=WAL;"))
                     await conn.execute(text("PRAGMA busy_timeout=30000;"))
+                    await conn.execute(text("PRAGMA foreign_keys=ON;"))
                 except Exception:
                     pass
                 await conn.run_sync(Base.metadata.create_all)

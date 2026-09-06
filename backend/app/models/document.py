@@ -19,7 +19,7 @@ class Document(Base):
     progress_stage = Column(String(100), default="في قائمة الانتظار", nullable=True)
     retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     owner = relationship("User", back_populates="documents")
@@ -28,6 +28,8 @@ class Document(Base):
     quizzes = relationship("Quiz", back_populates="document", cascade="all, delete-orphan")
     flashcards = relationship("Flashcard", back_populates="document", cascade="all, delete-orphan")
     exams = relationship("Exam", back_populates="document", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
+    remedial_sessions = relationship("RemedialSession", back_populates="document", cascade="all, delete-orphan")
 
 
 class DocumentChunk(Base):

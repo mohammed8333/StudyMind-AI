@@ -22,3 +22,5 @@ class User(Base):
     exams = relationship("Exam", back_populates="user", cascade="all, delete-orphan")
     exam_attempts = relationship("ExamAttempt", back_populates="student", cascade="all, delete-orphan")
     copilot_messages = relationship("CopilotMessage", back_populates="user", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
+    remedial_sessions = relationship("RemedialSession", back_populates="student", cascade="all, delete-orphan")

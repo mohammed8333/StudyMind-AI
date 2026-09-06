@@ -126,7 +126,7 @@ export default function FlashcardsDashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem("studymind_token");
     if (!token) {
-      router.push("/login");
+      router.replace("/");
       return;
     }
     loadData();

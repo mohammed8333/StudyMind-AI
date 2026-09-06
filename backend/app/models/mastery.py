@@ -61,7 +61,8 @@ class RemedialSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     
-    student = relationship("User")
+    student = relationship("User", back_populates="remedial_sessions")
     concept = relationship("Concept")
-    document = relationship("Document")
+    document = relationship("Document", back_populates="remedial_sessions")
+
 
