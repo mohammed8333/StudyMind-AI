@@ -388,8 +388,22 @@ export default function HomePage() {
               </div>
 
               {authError && (
-                <div className="mb-4 p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 leading-relaxed">
-                  {authError}
+                <div className="mb-4 p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 leading-relaxed space-y-2">
+                  <div>{authError}</div>
+                  {!isRegister && (
+                    <div className="pt-1.5 border-t border-red-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRegister(true);
+                          setAuthError("");
+                        }}
+                        className="font-bold underline text-brand-700 hover:text-brand-900 cursor-pointer block text-right"
+                      >
+                        💡 ليس لديك حساب بعد؟ اضغط هنا للتحويل إلى (طالب جديد) والتسجيل أولاً 🚀
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

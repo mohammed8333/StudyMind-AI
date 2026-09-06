@@ -23,13 +23,17 @@ engine = create_async_engine(
     db_url,
     echo=False,
     future=True,
+    pool_pre_ping=True,
     # SQLite specific connection args with 30s timeout
     connect_args={"check_same_thread": False, "timeout": 30.0} if is_sqlite else {}
 )
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Enforces foreign key constraint checks on SQLite connections."""
+    """Enforces foreign key constraint checks strictly on SQLite connections."""
+    conn_type = f"{type(dbapi_connection).__module__}.{type(dbapi_connection).__name__}".lower()
+    if "sqlite" not in conn_type:
+        return
     try:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON;")

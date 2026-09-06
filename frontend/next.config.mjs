@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   webpack: (config, { dev }) => {
     // Disable Webpack disk pack caching to avoid Windows V8 ArrayBuffer allocation limit errors
     if (dev) {
