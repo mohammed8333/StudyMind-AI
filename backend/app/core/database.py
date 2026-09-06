@@ -47,25 +47,51 @@ AsyncSessionLocal = async_sessionmaker(
 
 async def init_db():
     """Initialize database tables and pgvector extension if postgres."""
-    global engine, AsyncSessionLocal, is_sqlite
+    global engine, is_sqlite
     import app.models  # Ensure all model tables are registered in Base.metadata
     try:
+        if not is_sqlite:
+            # 1. Safely check / enable pgvector in an isolated autocommit connection
+            try:
+                async with engine.connect() as ext_conn:
+                    await ext_conn.execution_options(isolation_level="AUTOCOMMIT").execute(
+                        text("CREATE EXTENSION IF NOT EXISTS vector;")
+                    )
+                    logger.info("pgvector extension enabled or already present.")
+            except Exception as ext_err:
+                logger.warning(f"pgvector extension check skipped/not supported: {ext_err}")
+
+        # 2. Initialize tables in a clean transaction
         async with engine.begin() as conn:
-            if not is_sqlite:
-                try:
-                    # Attempt to enable pgvector extension
-                    await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                except Exception as ext_err:
-                    logger.warning(f"pgvector extension check failed (might already exist or not supported): {ext_err}")
-            else:
+            if is_sqlite:
                 try:
                     await conn.execute(text("PRAGMA journal_mode=WAL;"))
                     await conn.execute(text("PRAGMA busy_timeout=30000;"))
                     await conn.execute(text("PRAGMA foreign_keys=ON;"))
                 except Exception:
                     pass
+
             await conn.run_sync(Base.metadata.create_all)
-            for col_stmt in [
+
+            # 3. Idempotent column migrations using nested transactions (SAVEPOINT)
+            col_stmts = [
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) DEFAULT 'pdf';",
+                "ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS source_type VARCHAR(50) DEFAULT 'pdf';",
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS progress_percentage INTEGER DEFAULT 0;",
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS progress_stage VARCHAR(100) DEFAULT 'في قائمة الانتظار';",
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;",
+                "ALTER TABLE student_mastery ADD COLUMN IF NOT EXISTS primary_error_type VARCHAR(50);",
+                "ALTER TABLE student_mastery ADD COLUMN IF NOT EXISTS error_summary TEXT;",
+                "ALTER TABLE student_mastery ADD COLUMN IF NOT EXISTS is_proficient BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE student_mastery ADD COLUMN IF NOT EXISTS last_remediated_at TIMESTAMP;",
+                "ALTER TABLE question_responses ADD COLUMN IF NOT EXISTS error_type VARCHAR(50);",
+                "ALTER TABLE question_responses ADD COLUMN IF NOT EXISTS error_reason TEXT;",
+                "ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS progress_percentage FLOAT DEFAULT 0.0;",
+                "ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'weak_points_first';",
+                "ALTER TABLE study_plan_tasks ADD COLUMN IF NOT EXISTS recommended_questions_count INTEGER DEFAULT 5;",
+                "ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;"
+            ] if not is_sqlite else [
                 "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
                 "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';",
                 "ALTER TABLE documents ADD COLUMN progress_percentage INTEGER DEFAULT 0;",
@@ -79,13 +105,19 @@ async def init_db():
                 "ALTER TABLE question_responses ADD COLUMN error_reason TEXT;",
                 "ALTER TABLE study_plans ADD COLUMN progress_percentage FLOAT DEFAULT 0.0;",
                 "ALTER TABLE study_plans ADD COLUMN priority VARCHAR(50) DEFAULT 'weak_points_first';",
-                "ALTER TABLE study_plan_tasks ADD COLUMN recommended_questions_count INTEGER DEFAULT 5;"
-            ]:
+                "ALTER TABLE study_plan_tasks ADD COLUMN recommended_questions_count INTEGER DEFAULT 5;",
+                "ALTER TABLE flashcards ADD COLUMN is_suspended BOOLEAN DEFAULT 0;",
+                "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;"
+            ]
+
+            for col_stmt in col_stmts:
                 try:
-                    await conn.execute(text(col_stmt))
+                    async with conn.begin_nested():
+                        await conn.execute(text(col_stmt))
                 except Exception:
                     pass
-            logger.info("Database initialized successfully.")
+
+        logger.info(f"{'PostgreSQL' if not is_sqlite else 'SQLite'} database initialized successfully.")
     except Exception as e:
         if settings.USE_SQLITE_FALLBACK and not is_sqlite:
             logger.warning(f"PostgreSQL connection failed ({e}). Switching to SQLite fallback...")
@@ -97,13 +129,7 @@ async def init_db():
                 future=True,
                 connect_args={"check_same_thread": False, "timeout": 30.0}
             )
-            AsyncSessionLocal = async_sessionmaker(
-                bind=engine,
-                class_=AsyncSession,
-                expire_on_commit=False,
-                autocommit=False,
-                autoflush=False
-            )
+            AsyncSessionLocal.configure(bind=engine)
             async with engine.begin() as conn:
                 try:
                     await conn.execute(text("PRAGMA journal_mode=WAL;"))
@@ -131,7 +157,8 @@ async def init_db():
                     "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;"
                 ]:
                     try:
-                        await conn.execute(text(col_stmt))
+                        async with conn.begin_nested():
+                            await conn.execute(text(col_stmt))
                     except Exception:
                         pass
             logger.info("SQLite fallback database initialized successfully.")
