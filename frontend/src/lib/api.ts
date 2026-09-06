@@ -729,6 +729,77 @@ export const api = {
       return res.json();
     },
   },
+
+  copilot: {
+    async getState(): Promise<StudentLearningState> {
+      const res = await fetch(`${API_BASE_URL}/copilot/state`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل جلب حالة التعلم للمساعد الذكي");
+      return res.json();
+    },
+
+    async getNextAction(): Promise<WhatToStudyNowResponse> {
+      const res = await fetch(`${API_BASE_URL}/copilot/next-action`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل تحديد خطوة المذاكرة التالية");
+      return res.json();
+    },
+
+    async getBriefing(): Promise<DailyBriefingResponse> {
+      const res = await fetch(`${API_BASE_URL}/copilot/briefing`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل إعداد الخلاصة اليومية للمساعد الذكي");
+      return res.json();
+    },
+
+    async chat(message: string, documentId?: number): Promise<CopilotChatResponse> {
+      const res = await fetch(`${API_BASE_URL}/copilot/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ message, document_id: documentId }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل التواصل مع المساعد الذكي");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+
+    async getChatHistory(limit = 30): Promise<CopilotMessageItem[]> {
+      const res = await fetch(`${API_BASE_URL}/copilot/chat/history?limit=${limit}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل استرجاع سجل محادثات المساعد الذكي");
+      return res.json();
+    },
+
+    async clearChatHistory(): Promise<{ success: boolean; message: string }> {
+      const res = await fetch(`${API_BASE_URL}/copilot/chat/clear`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error("فشل مسح سجل المحادثات");
+      return res.json();
+    },
+
+    async rebalance(): Promise<CopilotRebalanceResponse> {
+      const res = await fetch(`${API_BASE_URL}/copilot/rebalance`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إعادة توزيع المهام");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+  },
 };
 
 export interface Flashcard {
@@ -960,5 +1031,96 @@ export interface ExamHistoryItem {
   is_mock_mode: boolean;
   submitted_at: string;
 }
+
+export interface ConceptWeaknessItem {
+  concept_id: number;
+  concept_name: string;
+  subject?: string | null;
+  chapter?: string | null;
+  document_id?: number | null;
+  mastery_score: number;
+  total_attempts: number;
+  correct_attempts: number;
+  primary_error_type?: string | null;
+  primary_error_label?: string | null;
+  error_summary?: string | null;
+}
+
+export interface StudentLearningState {
+  overall_mastery: number;
+  total_documents: number;
+  total_quizzes_taken: number;
+  total_exams_taken: number;
+  weak_concepts: ConceptWeaknessItem[];
+  strong_concepts: string[];
+  nearest_exam_date?: string | null;
+  days_until_exam?: number | null;
+  exam_target_subjects: string[];
+  exam_readiness_score: number;
+  active_plan_id?: number | null;
+  active_plan_progress: number;
+  today_tasks_count: number;
+  today_estimated_minutes: number;
+  overdue_tasks_count: number;
+  is_neglected: boolean;
+  due_flashcards_count: number;
+  current_focus_subject?: string | null;
+}
+
+export interface CopilotActionItem {
+  action_type: "REMEDIATE" | "STUDY" | "QUIZ" | "REVIEW_FLASHCARDS" | "REBALANCE" | "MOCK_EXAM";
+  title: string;
+  description: string;
+  rationale: string;
+  urgency: "CRITICAL" | "HIGH" | "NORMAL";
+  badge_label: string;
+  action_url: string;
+  payload: Record<string, any>;
+}
+
+export interface WhatToStudyNowResponse {
+  recommendation: CopilotActionItem;
+  alternative_actions: CopilotActionItem[];
+  student_headline: string;
+  state_summary: Record<string, any>;
+}
+
+export interface DailyBriefingResponse {
+  greeting: string;
+  date_str: string;
+  day_name_arabic: string;
+  exam_countdown_text?: string | null;
+  days_until_exam?: number | null;
+  neglect_alert?: string | null;
+  focus_headline: string;
+  today_tasks_summary: string;
+  primary_action: CopilotActionItem;
+  quick_tips: string[];
+}
+
+export interface CopilotChatResponse {
+  reply: string;
+  suggested_action?: CopilotActionItem | null;
+  citations: Array<{ page_number: number; document_id: number; snippet: string }>;
+  quick_prompts: string[];
+}
+
+export interface CopilotMessageItem {
+  id: number;
+  role: "user" | "copilot" | "system";
+  content: string;
+  action_type?: string | null;
+  action_payload?: Record<string, any> | null;
+  citations?: Array<{ page_number: number; document_id: number; snippet: string }> | null;
+  created_at: string;
+}
+
+export interface CopilotRebalanceResponse {
+  success: boolean;
+  message: string;
+  rescheduled_count: number;
+  new_target_date?: string | null;
+}
+
 
 

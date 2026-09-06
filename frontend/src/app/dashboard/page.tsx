@@ -28,6 +28,8 @@ import {
   Zap,
 } from "lucide-react";
 import { api, StudyPlan, TodayPlanResponse } from "@/lib/api";
+import CopilotWidget from "@/components/copilot/CopilotWidget";
+import CopilotDrawer from "@/components/copilot/CopilotDrawer";
 
 interface DailyTask {
   id: string;
@@ -77,6 +79,9 @@ export default function DashboardPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
   const [todayPlan, setTodayPlan] = useState<TodayPlanResponse | null>(null);
+
+  // AI Learning Copilot Drawer State
+  const [copilotDrawerOpen, setCopilotDrawerOpen] = useState(false);
 
   // Proposal 3: Quick 60-Second Challenge State
   const [challenge, setChallenge] = useState<QuickChallengeQuestion | null>(null);
@@ -240,6 +245,9 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* AI Learning Copilot Intelligence Widget */}
+      <CopilotWidget onOpenDrawer={() => setCopilotDrawerOpen(true)} />
 
       {/* Proposal 1: Study Stats & Streak Bar (شريط الإنجاز والتحفيز) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -663,6 +671,29 @@ export default function DashboardPage() {
           نصيحة أخرى ↻
         </button>
       </div>
+
+      {/* Floating Copilot Launcher Button */}
+      <button
+        type="button"
+        onClick={() => setCopilotDrawerOpen(true)}
+        className="fixed bottom-20 md:bottom-8 left-6 z-40 bg-gradient-to-r from-slate-900 via-indigo-950 to-brand-700 hover:from-slate-800 hover:to-brand-600 text-white p-3.5 sm:px-4 sm:py-3 rounded-full shadow-2xl shadow-indigo-900/40 flex items-center gap-2.5 hover:scale-105 active:scale-95 transition-all group border border-indigo-400/30"
+        title="المساعد الدراسي الذكي (StudyMind Copilot)"
+      >
+        <div className="relative">
+          <BrainCircuit className="w-5 h-5 text-sky-400 group-hover:scale-110 transition-transform" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900 animate-ping" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900" />
+        </div>
+        <span className="text-xs font-black hidden sm:inline">
+          اسأل الـ Copilot 🧠
+        </span>
+      </button>
+
+      {/* Copilot Drawer Assistant */}
+      <CopilotDrawer
+        isOpen={copilotDrawerOpen}
+        onClose={() => setCopilotDrawerOpen(false)}
+      />
     </div>
   );
 }

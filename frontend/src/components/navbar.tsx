@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Sparkles,
   Trash2,
   User,
   X,
@@ -67,6 +68,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: "لوحة المتابعة", icon: LayoutDashboard },
+    { href: "/copilot", label: "المساعد الذكي", icon: Sparkles },
     { href: "/planner", label: "جدول المذاكرة الذكي", icon: CalendarDays },
     { href: "/exams", label: "محاكي الامتحانات", icon: Award },
     { href: "/flashcards", label: "البطاقات الذكية", icon: Layers },
@@ -319,6 +321,18 @@ export default function Navbar() {
           >
             <LayoutDashboard className={`w-5 h-5 ${pathname === "/dashboard" ? "stroke-[2.5]" : ""}`} />
             <span className="text-[10px]">الرئيسية</span>
+          </Link>
+
+          <Link
+            href="/copilot"
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+              pathname === "/copilot"
+                ? "text-brand-600 font-black"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <Sparkles className={`w-5 h-5 ${pathname === "/copilot" ? "stroke-[2.5]" : ""}`} />
+            <span className="text-[10px]">الـ Copilot</span>
           </Link>
 
           <Link

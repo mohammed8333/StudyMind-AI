@@ -546,7 +546,7 @@ async def reschedule_overdue_tasks(
         .where(
             StudyPlanTask.plan_id == plan.id,
             StudyPlanTask.scheduled_date < today,
-            StudyPlanTask.status == "PENDING"
+            StudyPlanTask.status.in_(["PENDING", "OVERDUE"])
         )
         .order_by(StudyPlanTask.scheduled_date.asc())
     )
@@ -564,6 +564,7 @@ async def reschedule_overdue_tasks(
 
     for task in overdue_tasks:
         task.scheduled_date = target_date
+        task.status = "PENDING"
         task.notes = (task.notes or "") + " (تمت إعادة جدولتها تلقائياً)"
         current_load += task.duration_minutes
         day_count += 1

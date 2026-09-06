@@ -7,6 +7,7 @@ from app.models.study_plan import StudyPlan, StudyPlanTask
 from app.models.flashcard import Flashcard, FlashcardReviewLog
 from app.models.chat import ChatMessage
 from app.models.exam import Exam, ExamQuestion, ExamAttempt, ExamQuestionResponse
+from app.models.copilot import CopilotMessage
 
 __all__ = [
     "Base",
@@ -29,5 +30,6 @@ __all__ = [
     "ExamQuestion",
     "ExamAttempt",
     "ExamQuestionResponse",
+    "CopilotMessage",
 ]
 

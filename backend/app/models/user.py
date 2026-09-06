@@ -21,3 +21,4 @@ class User(Base):
     flashcards = relationship("Flashcard", back_populates="user", cascade="all, delete-orphan")
     exams = relationship("Exam", back_populates="user", cascade="all, delete-orphan")
     exam_attempts = relationship("ExamAttempt", back_populates="student", cascade="all, delete-orphan")
+    copilot_messages = relationship("CopilotMessage", back_populates="user", cascade="all, delete-orphan")
