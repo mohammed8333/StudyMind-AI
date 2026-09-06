@@ -38,7 +38,16 @@ class Settings(BaseSettings):
             if d not in origins:
                 origins.append(d)
         return origins
-    
+
+    # Email & Verification (SMTP / OTP)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@egypttravelportal.com"
+    SMTP_TLS: bool = True
+    REQUIRE_EMAIL_VERIFICATION: bool = False
+
     # AI Engine
     LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"
     GEMINI_API_KEY: str = ""

@@ -71,7 +71,7 @@ async function parseResponseError(res: Response, defaultMsg: string): Promise<st
 
 export const api = {
   auth: {
-    async register(data: { email: string; password: string; full_name: string; grade_or_level?: string }) {
+    async register(data: { email: string; password: string; full_name: string; grade_or_level?: string; phone_number?: string }) {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,6 +79,74 @@ export const api = {
       });
       if (!res.ok) {
         const msg = await parseResponseError(res, "فشل إنشاء الحساب");
+        throw new Error(msg);
+      }
+      const devOtp = res.headers.get("X-Dev-Otp");
+      const result = await res.json();
+      if (devOtp) {
+        result.dev_code = devOtp;
+      }
+      return result;
+    },
+
+    async verifyEmail(email: string, code: string) {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل التحقق من البريد الإلكتروني");
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("studymind_token", data.access_token);
+        localStorage.setItem("studymind_user", JSON.stringify(data));
+      }
+      return data;
+    },
+
+    async resendVerificationCode(email: string) {
+      const res = await fetch(`${API_BASE_URL}/auth/resend-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إعادة إرسال رمز التحقق");
+        throw new Error(msg);
+      }
+      const devOtp = res.headers.get("X-Dev-Otp");
+      const data = await res.json();
+      if (devOtp) data.dev_code = devOtp;
+      return data;
+    },
+
+    async forgotPassword(email: string) {
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إرسال رمز استعادة الحساب");
+        throw new Error(msg);
+      }
+      const devOtp = res.headers.get("X-Dev-Otp");
+      const data = await res.json();
+      if (devOtp) data.dev_code = devOtp;
+      return data;
+    },
+
+    async resetPassword(data: { email: string; code: string; new_password: string }) {
+      const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const msg = await parseResponseError(res, "فشل إعادة تعيين كلمة المرور");
         throw new Error(msg);
       }
       return res.json();

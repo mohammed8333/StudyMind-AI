@@ -12,6 +12,13 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     grade_or_level = Column(String(100), nullable=True)  # e.g., "ثانوية عامة", "الصف الأول الثانوي"
     is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    verification_code = Column(String(6), nullable=True)
+    verification_code_expires_at = Column(DateTime, nullable=True)
+    phone_number = Column(String(20), nullable=True)
+    phone_verified = Column(Boolean, default=False)
+    reset_password_code = Column(String(6), nullable=True)
+    reset_password_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan")

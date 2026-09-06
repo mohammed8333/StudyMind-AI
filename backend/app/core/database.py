@@ -95,7 +95,14 @@ async def init_db():
                 "ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'weak_points_first';",
                 "ALTER TABLE study_plan_tasks ADD COLUMN IF NOT EXISTS recommended_questions_count INTEGER DEFAULT 5;",
                 "ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;",
-                "ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;"
+                "ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6);",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMP;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_code VARCHAR(6);",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires_at TIMESTAMP;"
             ] if not is_sqlite else [
                 "ALTER TABLE documents ADD COLUMN file_type VARCHAR(50) DEFAULT 'pdf';",
                 "ALTER TABLE document_chunks ADD COLUMN source_type VARCHAR(50) DEFAULT 'pdf';",
@@ -112,7 +119,14 @@ async def init_db():
                 "ALTER TABLE study_plans ADD COLUMN priority VARCHAR(50) DEFAULT 'weak_points_first';",
                 "ALTER TABLE study_plan_tasks ADD COLUMN recommended_questions_count INTEGER DEFAULT 5;",
                 "ALTER TABLE flashcards ADD COLUMN is_suspended BOOLEAN DEFAULT 0;",
-                "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;"
+                "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;",
+                "ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0;",
+                "ALTER TABLE users ADD COLUMN verification_code VARCHAR(6);",
+                "ALTER TABLE users ADD COLUMN verification_code_expires_at DATETIME;",
+                "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20);",
+                "ALTER TABLE users ADD COLUMN phone_verified BOOLEAN DEFAULT 0;",
+                "ALTER TABLE users ADD COLUMN reset_password_code VARCHAR(6);",
+                "ALTER TABLE users ADD COLUMN reset_password_expires_at DATETIME;"
             ]
 
             for col_stmt in col_stmts:
@@ -159,7 +173,14 @@ async def init_db():
                     "ALTER TABLE study_plans ADD COLUMN priority VARCHAR(50) DEFAULT 'weak_points_first';",
                     "ALTER TABLE study_plan_tasks ADD COLUMN recommended_questions_count INTEGER DEFAULT 5;",
                     "ALTER TABLE flashcards ADD COLUMN is_suspended BOOLEAN DEFAULT 0;",
-                    "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;"
+                    "ALTER TABLE flashcards ADD COLUMN is_favorite BOOLEAN DEFAULT 0;",
+                    "ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0;",
+                    "ALTER TABLE users ADD COLUMN verification_code VARCHAR(6);",
+                    "ALTER TABLE users ADD COLUMN verification_code_expires_at DATETIME;",
+                    "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20);",
+                    "ALTER TABLE users ADD COLUMN phone_verified BOOLEAN DEFAULT 0;",
+                    "ALTER TABLE users ADD COLUMN reset_password_code VARCHAR(6);",
+                    "ALTER TABLE users ADD COLUMN reset_password_expires_at DATETIME;"
                 ]:
                     try:
                         async with conn.begin_nested():
