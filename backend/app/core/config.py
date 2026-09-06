@@ -39,13 +39,15 @@ class Settings(BaseSettings):
                 origins.append(d)
         return origins
 
-    # Email & Verification (SMTP / OTP)
+    # Email & Verification (SMTP / Resend / Brevo / OTP)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "noreply@egypttravelportal.com"
     SMTP_TLS: bool = True
+    RESEND_API_KEY: str = ""
+    BREVO_API_KEY: str = ""
     REQUIRE_EMAIL_VERIFICATION: bool = False
 
     # AI Engine
