@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import oauth2_scheme, decode_access_token
 from app.models.user import User
@@ -26,4 +27,12 @@ async def get_current_user(
     user = await db.get(User, user_id)
     if user is None or not user.is_active:
         raise credentials_exception
+
+    if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="يرجى تأكيد البريد الإلكتروني أولاً لتفعيل الحساب.",
+            headers={"X-Verification-Required": "true"}
+        )
+
     return user

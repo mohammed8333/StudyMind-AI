@@ -246,10 +246,24 @@ async def login(
         )
 
     if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
+        now = datetime.utcnow()
+        headers = {"X-Verification-Required": "true"}
+        if not user.verification_code or (user.verification_code_expires_at and user.verification_code_expires_at < now):
+            new_code = generate_otp_code(6)
+            user.verification_code = new_code
+            user.verification_code_expires_at = now + timedelta(minutes=15)
+            await db.commit()
+            email_res = await send_verification_email(user.email, new_code, user.full_name)
+            if email_res.get("code"):
+                headers["X-Dev-Otp"] = email_res["code"]
+            detail = "الحساب غير مؤكد بعد. تم إرسال رمز تحقق جديد إلى بريدك الإلكتروني لتفعيل الحساب."
+        else:
+            detail = "يرجى تأكيد البريد الإلكتروني أولاً باستخدام رمز التحقق المرسل لك."
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="يرجى تأكيد البريد الإلكتروني أولاً باستخدام رمز التحقق المرسل لك.",
-            headers={"X-Verification-Required": "true"}
+            detail=detail,
+            headers=headers,
         )
         
     token = create_access_token(user.id)

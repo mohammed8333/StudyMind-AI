@@ -47,8 +47,9 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@egypttravelportal.com"
     SMTP_TLS: bool = True
     RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
     BREVO_API_KEY: str = ""
-    REQUIRE_EMAIL_VERIFICATION: bool = False
+    REQUIRE_EMAIL_VERIFICATION: bool = True
 
     # AI Engine
     LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openrouter" | "ollama"

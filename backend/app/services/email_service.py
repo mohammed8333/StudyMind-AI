@@ -285,6 +285,33 @@ def _resolve_ipv4(host: str, port: int) -> str:
     return host
 
 
+PUBLIC_EMAIL_DOMAINS = (
+    "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
+    "live.com", "icloud.com", "mail.ru", "proton.me", "aol.com"
+)
+
+
+def _get_resend_from_email() -> str:
+    """
+    Get a valid sender email for Resend API.
+    Resend strictly forbids sending from public webmail domains like @gmail.com without verified DNS.
+    If using free/testing onboarding, 'onboarding@resend.dev' must be used.
+    """
+    if getattr(settings, "RESEND_FROM_EMAIL", None) and "@" in settings.RESEND_FROM_EMAIL:
+        addr = settings.RESEND_FROM_EMAIL.strip()
+        domain = addr.split("@")[-1].lower()
+        if not any(domain == pub or domain.endswith("." + pub) for pub in PUBLIC_EMAIL_DOMAINS):
+            return addr
+
+    if settings.SMTP_FROM_EMAIL and "@" in settings.SMTP_FROM_EMAIL:
+        addr = settings.SMTP_FROM_EMAIL.strip()
+        domain = addr.split("@")[-1].lower()
+        if not any(domain == pub or domain.endswith("." + pub) for pub in PUBLIC_EMAIL_DOMAINS) and not domain.endswith("localhost"):
+            return addr
+
+    return "onboarding@resend.dev"
+
+
 async def _send_resend_api(to_email: str, subject: str, html_content: str, text_content: str) -> bool:
     """
     Send email via Resend HTTP REST API over Port 443 (HTTPS).
@@ -297,11 +324,7 @@ async def _send_resend_api(to_email: str, subject: str, html_content: str, text_
         "Authorization": f"Bearer {settings.RESEND_API_KEY.strip()}",
         "Content-Type": "application/json",
     }
-    from_addr = (
-        settings.SMTP_FROM_EMAIL.strip()
-        if "@" in settings.SMTP_FROM_EMAIL and not settings.SMTP_FROM_EMAIL.endswith("localhost")
-        else "onboarding@resend.dev"
-    )
+    from_addr = _get_resend_from_email()
     payload = {
         "from": f"StudyMind AI <{from_addr}>",
         "to": [to_email],
@@ -315,6 +338,17 @@ async def _send_resend_api(to_email: str, subject: str, html_content: str, text_
             if response.status_code in (200, 201):
                 logger.info(f"Email successfully delivered via Resend API to {to_email}")
                 return True
+
+            # If domain verification failed and we didn't use onboarding@resend.dev, retry with onboarding@resend.dev
+            if response.status_code in (400, 403) and from_addr != "onboarding@resend.dev":
+                logger.warning(f"Resend rejected sender {from_addr} ({response.status_code}), retrying with onboarding@resend.dev...")
+                payload["from"] = "StudyMind AI <onboarding@resend.dev>"
+                retry_resp = await client.post("https://api.resend.com/emails", headers=headers, json=payload)
+                if retry_resp.status_code in (200, 201):
+                    logger.info(f"Email successfully delivered via Resend API (fallback onboarding@resend.dev) to {to_email}")
+                    return True
+                logger.warning(f"Resend retry also failed: {retry_resp.status_code} - {retry_resp.text}")
+
             logger.warning(f"Resend API returned status {response.status_code}: {response.text}")
             return False
     except Exception as e:

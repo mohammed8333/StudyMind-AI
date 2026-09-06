@@ -196,17 +196,41 @@ export default function HomePage() {
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("studymind_token") : null;
+    const pendingEmail = typeof window !== "undefined" ? localStorage.getItem("studymind_pending_verify_email") : null;
+
     if (token) {
       api.auth.getMe()
-        .then(() => {
-          router.replace("/dashboard");
+        .then((user: any) => {
+          if (user && user.is_verified === false) {
+            localStorage.removeItem("studymind_token");
+            localStorage.removeItem("studymind_user");
+            if (user.email) {
+              setEmail(user.email);
+              localStorage.setItem("studymind_pending_verify_email", user.email);
+            }
+            setAuthView("verify_otp");
+            setAuthError("يرجى تأكيد بريدك الإلكتروني أولاً باستخدام رمز التحقق (OTP) لتفعيل الحساب.");
+            setCheckingAuth(false);
+          } else {
+            router.replace("/dashboard");
+          }
         })
         .catch(() => {
           localStorage.removeItem("studymind_token");
           localStorage.removeItem("studymind_user");
+          if (pendingEmail) {
+            setEmail(pendingEmail);
+            setAuthView("verify_otp");
+            setAuthError("يرجى تأكيد بريدك الإلكتروني أولاً باستخدام رمز التحقق (OTP).");
+          }
           setCheckingAuth(false);
         });
     } else {
+      if (pendingEmail) {
+        setEmail(pendingEmail);
+        setAuthView("verify_otp");
+        setAuthSuccessMsg("يرجى إدخال رمز التحقق (OTP) المرسل إلى بريدك الإلكتروني لتفعيل الحساب.");
+      }
       setCheckingAuth(false);
     }
   }, [router]);
@@ -238,19 +262,34 @@ export default function HomePage() {
         if (regRes.dev_code) {
           setDevOtpCode(regRes.dev_code);
         }
+        if (typeof window !== "undefined") {
+          localStorage.setItem("studymind_pending_verify_email", email.trim());
+        }
         setAuthView("verify_otp");
         setResendCooldown(60);
         setAuthSuccessMsg("تم إرسال رمز التحقق (OTP) المكون من 6 أرقام إلى بريدك الإلكتروني.");
       } else if (authView === "login") {
         await api.auth.login(email.trim(), password);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("studymind_pending_verify_email");
+        }
         router.push("/dashboard");
       }
     } catch (err: any) {
-      if (err.message && err.message.includes("تأكيد البريد")) {
+      const errMsg = err.message || "";
+      if (
+        errMsg.includes("تأكيد البريد") ||
+        errMsg.includes("رمز التحقق") ||
+        errMsg.includes("غير مؤكد") ||
+        errMsg.includes("غير موثق")
+      ) {
+        if (typeof window !== "undefined" && email.trim()) {
+          localStorage.setItem("studymind_pending_verify_email", email.trim());
+        }
         setAuthView("verify_otp");
-        setAuthError("الحساب غير موثق بعد. أدخل رمز التحقق لتفعيله.");
+        setAuthError(errMsg || "الحساب غير موثق بعد. أدخل رمز التحقق لتفعيله.");
       } else {
-        setAuthError(err.message || "حدث خطأ أثناء المصادقة. يرجى التأكد من البيانات.");
+        setAuthError(errMsg || "حدث خطأ أثناء المصادقة. يرجى التأكد من البيانات.");
       }
     } finally {
       setAuthLoading(false);
@@ -266,6 +305,9 @@ export default function HomePage() {
         throw new Error("يرجى إدخال رمز التحقق المكون من 6 أرقام.");
       }
       await api.auth.verifyEmail(email.trim(), otpCode.trim());
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("studymind_pending_verify_email");
+      }
       router.push("/dashboard");
     } catch (err: any) {
       setAuthError(err.message || "رمز التحقق غير صحيح أو منتهي الصلاحية.");
@@ -708,17 +750,36 @@ export default function HomePage() {
                       <RefreshCw className={`w-3.5 h-3.5 ${authLoading ? "animate-spin" : ""}`} />
                       <span>{resendCooldown > 0 ? `إعادة الإرسال بعد (${resendCooldown} ث)` : "إعادة إرسال الرمز"}</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthView("register");
-                        setAuthError("");
-                        setAuthSuccessMsg("");
-                      }}
-                      className="text-slate-500 hover:text-slate-700 underline"
-                    >
-                      تعديل البريد
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            localStorage.removeItem("studymind_pending_verify_email");
+                          }
+                          setAuthView("login");
+                          setAuthError("");
+                          setAuthSuccessMsg("");
+                        }}
+                        className="text-slate-500 hover:text-slate-700 underline"
+                      >
+                        تسجيل الدخول
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            localStorage.removeItem("studymind_pending_verify_email");
+                          }
+                          setAuthView("register");
+                          setAuthError("");
+                          setAuthSuccessMsg("");
+                        }}
+                        className="text-slate-500 hover:text-slate-700 underline"
+                      >
+                        تعديل البريد
+                      </button>
+                    </div>
                   </div>
                 </form>
               )}
