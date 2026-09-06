@@ -99,7 +99,7 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center gap-1.5 lg:gap-3">
+            <div className="hidden lg:flex items-center gap-1 xl:gap-2 shrink-0">
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
@@ -107,45 +107,45 @@ export default function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-1.5 xl:py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                       isActive
                         ? "bg-brand-50 text-brand-700 border border-brand-200 shadow-xs"
                         : "text-slate-600 hover:text-brand-600 hover:bg-slate-50"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{link.label}</span>
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="whitespace-nowrap">{link.label}</span>
                   </Link>
                 );
               })}
             </div>
 
             {/* Desktop User Section */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2.5 xl:gap-3 shrink-0">
               {user ? (
                 <Link
                   href="/profile"
-                  className={`flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border transition-all shadow-2xs hover:shadow-xs group ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shadow-2xs hover:shadow-xs group whitespace-nowrap shrink-0 ${
                     pathname === "/profile"
                       ? "bg-brand-50 border-brand-300 text-brand-700 ring-2 ring-brand-100"
                       : "bg-slate-50 hover:bg-white border-slate-200 text-slate-700 hover:border-brand-200"
                   }`}
                   title="الملف الشخصي والحساب"
                 >
-                  <div className="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+                  <div className="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-black text-xs shadow-2xs shrink-0">
                     {user.full_name?.charAt(0) || "ط"}
                   </div>
-                  <span className="text-xs font-bold group-hover:text-brand-700 transition-colors">
+                  <span className="text-xs font-bold group-hover:text-brand-700 transition-colors whitespace-nowrap">
                     {user.full_name}
                   </span>
-                  <span className="text-[10px] font-bold text-brand-700 bg-brand-100/70 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold text-brand-700 bg-brand-100/70 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                     حسابي
                   </span>
                 </Link>
               ) : (
                 <Link
                   href="/"
-                  className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-all"
+                  className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-all whitespace-nowrap shrink-0"
                 >
                   دخول / تجربة
                 </Link>
@@ -153,11 +153,11 @@ export default function Navbar() {
             </div>
 
             {/* Mobile Header Right Controls: User Badge + Hamburger Toggle */}
-            <div className="flex md:hidden items-center gap-2">
+            <div className="flex lg:hidden items-center gap-2">
               {user && (
                 <Link
                   href="/profile"
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border max-w-[130px] transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border max-w-[130px] transition-all whitespace-nowrap ${
                     pathname === "/profile"
                       ? "bg-brand-50 border-brand-300 text-brand-700"
                       : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
@@ -187,7 +187,7 @@ export default function Navbar() {
 
         {/* Mobile Dropdown Menu Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md px-4 pt-3 pb-5 space-y-3 shadow-xl animate-in slide-in-from-top-2 duration-200">
+          <div className="lg:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md px-4 pt-3 pb-5 space-y-3 shadow-xl animate-in slide-in-from-top-2 duration-200">
             {user ? (
               <Link
                 href="/profile"
