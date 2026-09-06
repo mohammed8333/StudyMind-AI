@@ -27,12 +27,13 @@ from app.core.middleware import SecurityHeadersMiddleware
 # Configure Security Headers Middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Configure CORS with strict Allowlist from Settings
+# Configure CORS with strict Allowlist from Settings and dynamic Vercel/Railway subdomains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
+    allow_origin_regex=r"^https?:\/\/([a-zA-Z0-9-]+\.)*(vercel\.app|railway\.app)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

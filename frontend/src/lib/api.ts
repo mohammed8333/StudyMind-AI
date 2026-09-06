@@ -19,6 +19,33 @@ function getAuthHeader(): Record<string, string> {
   return {};
 }
 
+const nativeFetch =
+  typeof globalThis !== "undefined" && globalThis.fetch
+    ? globalThis.fetch.bind(globalThis)
+    : ((...args: any[]) => Promise.reject(new Error("Fetch is unavailable")));
+
+async function fetchWithNetworkErrorHandling(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await nativeFetch(input, init);
+  } catch (err: any) {
+    if (err.name === "TypeError" || (err.message && err.message.toLowerCase().includes("fetch"))) {
+      const urlStr = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as any)?.url || "";
+      const isLocalhost = urlStr.includes("localhost") || urlStr.includes("127.0.0.1");
+      if (isLocalhost && typeof window !== "undefined" && window.location.hostname !== "localhost") {
+        throw new Error(
+          `تعذر الاتصال بالخادم: التطبيق يحاول الاتصال بـ (${urlStr}). يرجى إضافة متغير NEXT_PUBLIC_API_URL في إعدادات Vercel برابط Railway (مثال: https://your-backend.up.railway.app/api/v1).`
+        );
+      }
+      throw new Error(
+        `تعذر الاتصال بسيرفر الباك إند (${urlStr}). تأكد من تشغيل خدمة Railway وأن السيرفر نشط ومتاح.`
+      );
+    }
+    throw err;
+  }
+}
+
+const fetch = fetchWithNetworkErrorHandling;
+
 async function parseResponseError(res: Response, defaultMsg: string): Promise<string> {
   try {
     const err = await res.json();
