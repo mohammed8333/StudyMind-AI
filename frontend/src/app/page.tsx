@@ -242,11 +242,10 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.7 }}
-            className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight sm:leading-snug max-w-3xl"
+            className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-[1.35] sm:leading-[1.4] lg:leading-[1.45] max-w-4xl"
           >
-            لا تسأل الذكاء الاصطناعي في الفراغ..
-            <br />
-            <span className="bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
+            <span className="block mb-2.5 sm:mb-3.5">لا تسأل الذكاء الاصطناعي في الفراغ..</span>
+            <span className="block bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent pb-1">
               حوّل مذكرتك وكتابك إلى مدرس خاص
             </span>
           </motion.h1>

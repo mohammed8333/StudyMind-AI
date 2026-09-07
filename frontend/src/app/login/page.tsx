@@ -279,10 +279,9 @@ function LoginForm() {
           </div>
 
           <div>
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-snug sm:leading-snug">
-              كل ما تحتاجه للمذاكرة والتفوق..
-              <br />
-              <span className="bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 leading-[1.35] sm:leading-[1.45]">
+              <span className="block mb-2">كل ما تحتاجه للمذاكرة والتفوق..</span>
+              <span className="block bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent pb-1">
                 في مكان واحد بدقة الذكاء الاصطناعي
               </span>
             </h1>
