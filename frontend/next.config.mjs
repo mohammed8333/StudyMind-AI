@@ -15,13 +15,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/login',
-        destination: '/',
-        permanent: false,
-      },
-      {
         source: '/register',
-        destination: '/',
+        destination: '/login?mode=register',
         permanent: false,
       },
     ];
