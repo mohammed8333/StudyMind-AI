@@ -171,7 +171,7 @@ export default function Navbar() {
                 </Link>
               ) : (
                 <Link
-                  href="/"
+                  href="/login"
                   className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-all whitespace-nowrap shrink-0"
                 >
                   دخول / تجربة
@@ -278,7 +278,7 @@ export default function Navbar() {
             ) : (
               <div className="pt-2 border-t border-slate-100">
                 <Link
-                  href="/"
+                  href="/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors shadow-sm"
                 >

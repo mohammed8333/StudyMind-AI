@@ -163,30 +163,7 @@ const SIMULATOR_PAGES = [
 
 export default function HomePage() {
   const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  // Auth Form View State
-  type AuthView = "login" | "register" | "verify_otp" | "forgot_password" | "reset_password";
-  const [authView, setAuthView] = useState<AuthView>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [devOtpCode, setDevOtpCode] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
-
-  // Cooldown countdown
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // 3D Flip Card states (tracked by index)
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
@@ -196,44 +173,20 @@ export default function HomePage() {
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("studymind_token") : null;
-    const pendingEmail = typeof window !== "undefined" ? localStorage.getItem("studymind_pending_verify_email") : null;
-
     if (token) {
-      api.auth.getMe()
+      setIsRedirecting(true);
+      api.auth
+        .getMe()
         .then((user: any) => {
-          if (user && user.is_verified === false) {
-            localStorage.removeItem("studymind_token");
-            localStorage.removeItem("studymind_user");
-            window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: null }));
-            if (user.email) {
-              setEmail(user.email);
-              localStorage.setItem("studymind_pending_verify_email", user.email);
-            }
-            setAuthView("verify_otp");
-            setAuthError("يرجى تأكيد بريدك الإلكتروني أولاً باستخدام رمز التحقق (OTP) لتفعيل الحساب.");
-            setCheckingAuth(false);
-          } else {
+          if (user && user.is_verified !== false) {
             router.replace("/dashboard");
+          } else {
+            setIsRedirecting(false);
           }
         })
         .catch(() => {
-          localStorage.removeItem("studymind_token");
-          localStorage.removeItem("studymind_user");
-          window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: null }));
-          if (pendingEmail) {
-            setEmail(pendingEmail);
-            setAuthView("verify_otp");
-            setAuthError("يرجى تأكيد بريدك الإلكتروني أولاً باستخدام رمز التحقق (OTP).");
-          }
-          setCheckingAuth(false);
+          setIsRedirecting(false);
         });
-    } else {
-      if (pendingEmail) {
-        setEmail(pendingEmail);
-        setAuthView("verify_otp");
-        setAuthSuccessMsg("يرجى إدخال رمز التحقق (OTP) المرسل إلى بريدك الإلكتروني لتفعيل الحساب.");
-      }
-      setCheckingAuth(false);
     }
   }, [router]);
 
@@ -244,147 +197,7 @@ export default function HomePage() {
     }));
   };
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    setAuthSuccessMsg("");
-    setAuthLoading(true);
-
-    try {
-      if (authView === "register") {
-        if (!fullName.trim()) {
-          throw new Error("يرجى إدخال اسم الطالب");
-        }
-        const regRes = await api.auth.register({
-          email: email.trim(),
-          password,
-          full_name: fullName.trim(),
-          phone_number: phoneNumber.trim() || undefined,
-        });
-        if (regRes.dev_code) {
-          setDevOtpCode(regRes.dev_code);
-        }
-        if (typeof window !== "undefined") {
-          localStorage.setItem("studymind_pending_verify_email", email.trim());
-        }
-        setAuthView("verify_otp");
-        setResendCooldown(60);
-        setAuthSuccessMsg("تم إرسال رمز التحقق (OTP) المكون من 6 أرقام إلى بريدك الإلكتروني.");
-      } else if (authView === "login") {
-        await api.auth.login(email.trim(), password);
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("studymind_pending_verify_email");
-        }
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      const errMsg = err.message || "";
-      if (
-        errMsg.includes("تأكيد البريد") ||
-        errMsg.includes("رمز التحقق") ||
-        errMsg.includes("غير مؤكد") ||
-        errMsg.includes("غير موثق")
-      ) {
-        if (typeof window !== "undefined" && email.trim()) {
-          localStorage.setItem("studymind_pending_verify_email", email.trim());
-        }
-        setAuthView("verify_otp");
-        setAuthError(errMsg || "الحساب غير موثق بعد. أدخل رمز التحقق لتفعيله.");
-      } else {
-        setAuthError(errMsg || "حدث خطأ أثناء المصادقة. يرجى التأكد من البيانات.");
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    setAuthLoading(true);
-    try {
-      if (!otpCode.trim() || otpCode.trim().length !== 6) {
-        throw new Error("يرجى إدخال رمز التحقق المكون من 6 أرقام.");
-      }
-      await api.auth.verifyEmail(email.trim(), otpCode.trim());
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("studymind_pending_verify_email");
-      }
-      router.push("/dashboard");
-    } catch (err: any) {
-      setAuthError(err.message || "رمز التحقق غير صحيح أو منتهي الصلاحية.");
-      setAuthLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0 || authLoading) return;
-    setAuthError("");
-    setAuthSuccessMsg("");
-    setAuthLoading(true);
-    try {
-      const res = await api.auth.resendVerificationCode(email.trim());
-      if (res.dev_code) {
-        setDevOtpCode(res.dev_code);
-      }
-      setResendCooldown(60);
-      setAuthSuccessMsg("تم إرسال رمز تحقق جديد بنجاح.");
-    } catch (err: any) {
-      setAuthError(err.message || "فشل إعادة إرسال الرمز. حاول مجدداً لاحقاً.");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    setAuthSuccessMsg("");
-    setAuthLoading(true);
-    try {
-      if (!email.trim()) {
-        throw new Error("يرجى إدخال البريد الإلكتروني.");
-      }
-      const res = await api.auth.forgotPassword(email.trim());
-      if (res.dev_code) {
-        setDevOtpCode(res.dev_code);
-      }
-      setAuthView("reset_password");
-      setAuthSuccessMsg("إذا كان البريد مسجلاً، فقد تم إرسال رمز استعادة الحساب.");
-    } catch (err: any) {
-      setAuthError(err.message || "تعذر إرسال رمز الاستعادة.");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    setAuthSuccessMsg("");
-    setAuthLoading(true);
-    try {
-      if (!otpCode.trim() || otpCode.trim().length !== 6) {
-        throw new Error("يرجى إدخال رمز الاستعادة المكون من 6 أرقام.");
-      }
-      if (!newPassword || newPassword.length < 8) {
-        throw new Error("كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.");
-      }
-      await api.auth.resetPassword({
-        email: email.trim(),
-        code: otpCode.trim(),
-        new_password: newPassword,
-      });
-      setAuthView("login");
-      setAuthSuccessMsg("تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول.");
-    } catch (err: any) {
-      setAuthError(err.message || "تعذر تعيين كلمة المرور الجديدة.");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  if (checkingAuth) {
+  if (isRedirecting) {
     return (
       <div className="min-h-[75vh] flex flex-col items-center justify-center gap-4">
         <motion.div
@@ -396,7 +209,7 @@ export default function HomePage() {
         </motion.div>
         <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
-          <span>جاري التحقق من الحساب ونقلك للوحة المذاكرة...</span>
+          <span>جاري نقلك للوحة المذاكرة...</span>
         </div>
       </div>
     );
@@ -405,7 +218,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center pb-24 overflow-x-hidden">
       {/* ========================================================================= */}
-      {/* SECTION 1: HERO & AUTH (Entrance Transitions: Right, Left, Top, Bottom) */}
+      {/* SECTION 1: HERO (With Hero CTA to /login & Live AI Tutor Demo Showcase) */}
       {/* ========================================================================= */}
       <section className="w-full max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
@@ -475,8 +288,16 @@ export default function HomePage() {
               </div>
             </motion.div>
 
-            {/* Jump to How-it-works link */}
-            <div className="pt-2">
+            {/* Blue Box position: CTA Buttons */}
+            <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all group cursor-pointer text-center"
+              >
+                <span>ابدأ المذاكرة الآن مجاناً 🚀</span>
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              </Link>
+
               <button
                 type="button"
                 onClick={() => {
@@ -485,444 +306,86 @@ export default function HomePage() {
                     el.scrollIntoView({ behavior: "smooth" });
                   }
                 }}
-                className="inline-flex items-center gap-2 text-xs font-bold text-brand-600 hover:text-brand-700 transition-colors group cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors group cursor-pointer text-center"
               >
-                <span>شاهد كيف تعمل المنصة خطوة بخطوة بالأسفل</span>
-                <ArrowDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
+                <span>شاهد كيف تعمل المنصة</span>
+                <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform text-brand-600" />
               </button>
             </div>
           </motion.div>
 
-          {/* Left Column (Auth Form): Slides in from Left */}
+          {/* Left Column: Interactive Visual Showcase Demo (replacing the auth card) */}
           <motion.div
             initial={{ opacity: 0, x: -80 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="lg:col-span-5"
           >
-            <div className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200 shadow-2xl shadow-brand-500/10 text-right relative overflow-hidden">
-              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600" />
+            <div className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-2xl shadow-brand-500/10 text-right space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-l from-brand-600 via-sky-500 to-emerald-500" />
 
-              {/* Card Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">
-                    {authView === "register" && "إنشاء حساب طالب جديد"}
-                    {authView === "login" && "تسجيل الدخول للمنصة"}
-                    {authView === "verify_otp" && "تأكيد ملكية الحساب (OTP)"}
-                    {authView === "forgot_password" && "استعادة كلمة المرور"}
-                    {authView === "reset_password" && "تعيين كلمة المرور الجديدة"}
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {authView === "register" && "سجل حسابك للوصول إلى مذكراتك وتحليلاتك"}
-                    {authView === "login" && "سجل الدخول للمتابعة إلى لوحة المذاكرة"}
-                    {authView === "verify_otp" && `تم إرسال رمز الأمان إلى: ${email}`}
-                    {authView === "forgot_password" && "أدخل بريدك الإلكتروني المسجل لاستلام رمز الاستعادة"}
-                    {authView === "reset_password" && "أدخل الرمز المرسل وكلمة المرور الجديدة"}
-                  </p>
+              {/* Mock Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-black text-slate-800">جلسة مذاكرة ذكية مباشرة</span>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
-                  {authView === "verify_otp" ? (
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                  ) : authView === "forgot_password" || authView === "reset_password" ? (
-                    <KeyRound className="w-5 h-5 text-amber-600" />
-                  ) : (
-                    <GraduationCap className="w-5 h-5" />
-                  )}
+                <span className="text-[11px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200">
+                  كتاب الفيزياء ص 37
+                </span>
+              </div>
+
+              {/* Student Query Mock */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 text-right space-y-1">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
+                  <span>سؤال الطالب:</span>
+                  <span className="text-brand-600">تلقائي من المذكرة</span>
+                </div>
+                <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                  "كيف أفرق بين الكتلة والوزن في مسائل نيوتن بدون ما أغلط؟"
+                </p>
+              </div>
+
+              {/* AI Tutor Response Mock */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-brand-50/70 via-sky-50/40 to-emerald-50/30 border border-brand-200/80 text-right space-y-2">
+                <div className="flex items-center gap-2 text-xs font-black text-brand-800">
+                  <Sparkles className="w-4 h-4 text-brand-600 animate-spin" />
+                  <span>رد المعلم الذكي (بتقنية فاينمان):</span>
+                </div>
+                <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                  الكتلة (m) هي مقدار ما يحتويه جسمك من مادة، وثابتة لو سافرت للمريخ! أما الوزن (W = m × g) فهو قوة جذب الكوكب لك، ويتغير بتغير المكان.
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-brand-200/50 text-[10px] font-bold">
+                  <span className="text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>موثق رقمياً من مذكرتك</span>
+                  </span>
+                  <span className="text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
+                    [المصدر: ص 37 - السطر 4]
+                  </span>
                 </div>
               </div>
 
-              {/* Login / Register Mode Toggle (only in login/register view) */}
-              {(authView === "login" || authView === "register") && (
-                <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthView("login");
-                      setAuthError("");
-                      setAuthSuccessMsg("");
-                    }}
-                    className={`py-2 rounded-lg transition-all ${
-                      authView === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    تسجيل الدخول
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthView("register");
-                      setAuthError("");
-                      setAuthSuccessMsg("");
-                    }}
-                    className={`py-2 rounded-lg transition-all ${
-                      authView === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    طالب جديد
-                  </button>
+              {/* Smart Badges */}
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-bold">
+                <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 shadow-2xs">
+                  <Target className="w-3.5 h-3.5 text-brand-600" />
+                  <span>توليد كويز تلقائي</span>
                 </div>
-              )}
-
-              {/* Alerts */}
-              {authSuccessMsg && (
-                <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200 flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{authSuccessMsg}</span>
+                <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 shadow-2xs">
+                  <BrainCircuit className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>تشخيص فوري للضعف</span>
                 </div>
-              )}
+              </div>
 
-              {devOtpCode && authView === "verify_otp" && (
-                <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-xs rounded-xl border border-blue-200 flex items-center justify-between">
-                  <span>💡 رمز التحقق التجريبي السريع:</span>
-                  <span className="font-black text-sm tracking-widest bg-white px-2 py-0.5 rounded border border-blue-300">{devOtpCode}</span>
-                </div>
-              )}
-
-              {authError && (
-                <div className="mb-4 p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 leading-relaxed space-y-2">
-                  <div>{authError}</div>
-                  {authView === "login" && (
-                    <div className="pt-1.5 border-t border-red-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthView("register");
-                          setAuthError("");
-                        }}
-                        className="font-bold underline text-brand-700 hover:text-brand-900 cursor-pointer block text-right"
-                      >
-                        💡 ليس لديك حساب بعد؟ اضغط هنا للتحويل إلى (طالب جديد) والتسجيل أولاً 🚀
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* VIEW 1 & 2: LOGIN / REGISTER */}
-              {(authView === "login" || authView === "register") && (
-                <form onSubmit={handleAuthSubmit} className="space-y-4">
-                  {authView === "register" && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">الاسم بالكامل</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            required
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="مثال: أحمد محمد"
-                            className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
-                          />
-                          <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">رقم الهاتف (اختياري للتحقق)</label>
-                        <div className="relative">
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="مثال: 01012345678"
-                            className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dir-ltr text-right"
-                          />
-                          <Phone className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">البريد الإلكتروني</label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="student@example.com"
-                        className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dir-ltr text-right"
-                      />
-                      <Mail className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-700">كلمة المرور</label>
-                      {authView === "login" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAuthView("forgot_password");
-                            setAuthError("");
-                            setAuthSuccessMsg("");
-                          }}
-                          className="text-[11px] text-brand-600 hover:text-brand-800 font-bold"
-                        >
-                          نسيت كلمة المرور؟
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dir-ltr text-right"
-                      />
-                      <Lock className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full mt-2 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري المعالجة...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{authView === "register" ? "إنشاء الحساب وبدء التحقق" : "دخول مباشر للوحة المذاكرة"}</span>
-                        <ArrowLeft className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {/* VIEW 3: OTP VERIFICATION */}
-              {authView === "verify_otp" && (
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">
-                      أدخل رمز التحقق (6 أرقام)
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        autoFocus
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                        placeholder="------"
-                        className="w-full text-center tracking-[12px] text-2xl font-black font-mono py-3 border-2 border-brand-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 bg-slate-50"
-                      />
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-2 text-center">
-                      تحقق من صندوق الوارد أو الرسائل غير المرغوب فيها (Spam).
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading || otpCode.length !== 6}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري التحقق...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-5 h-5" />
-                        <span>تأكيد الحساب والدخول للوحة المذاكرة</span>
-                      </>
-                    )}
-                  </button>
-
-                  <div className="flex items-center justify-between pt-2 text-xs">
-                    <button
-                      type="button"
-                      disabled={resendCooldown > 0 || authLoading}
-                      onClick={handleResendOtp}
-                      className="text-brand-600 hover:text-brand-800 disabled:text-slate-400 font-bold flex items-center gap-1.5"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${authLoading ? "animate-spin" : ""}`} />
-                      <span>{resendCooldown > 0 ? `إعادة الإرسال بعد (${resendCooldown} ث)` : "إعادة إرسال الرمز"}</span>
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof window !== "undefined") {
-                            localStorage.removeItem("studymind_pending_verify_email");
-                          }
-                          setAuthView("login");
-                          setAuthError("");
-                          setAuthSuccessMsg("");
-                        }}
-                        className="text-slate-500 hover:text-slate-700 underline"
-                      >
-                        تسجيل الدخول
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof window !== "undefined") {
-                            localStorage.removeItem("studymind_pending_verify_email");
-                          }
-                          setAuthView("register");
-                          setAuthError("");
-                          setAuthSuccessMsg("");
-                        }}
-                        className="text-slate-500 hover:text-slate-700 underline"
-                      >
-                        تعديل البريد
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              )}
-
-              {/* VIEW 4: FORGOT PASSWORD */}
-              {authView === "forgot_password" && (
-                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">البريد الإلكتروني المسجل</label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="student@example.com"
-                        className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dir-ltr text-right"
-                      />
-                      <Mail className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري الإرسال...</span>
-                      </>
-                    ) : (
-                      <>
-                        <KeyRound className="w-4 h-4" />
-                        <span>إرسال رمز الاستعادة</span>
-                      </>
-                    )}
-                  </button>
-
-                  <div className="text-center pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthView("login");
-                        setAuthError("");
-                        setAuthSuccessMsg("");
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-800 underline"
-                    >
-                      العودة لتسجيل الدخول
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* VIEW 5: RESET PASSWORD */}
-              {authView === "reset_password" && (
-                <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">رمز الاستعادة (6 أرقام)</label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                      placeholder="123456"
-                      className="w-full text-center tracking-widest text-lg font-mono py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">كلمة المرور الجديدة</label>
-                    <div className="relative">
-                      <input
-                        type="password"
-                        required
-                        minLength={8}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="•••••••• (8 أحرف على الأقل)"
-                        className="w-full pr-10 pl-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dir-ltr text-right"
-                      />
-                      <Lock className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري التحديث...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>تأكيد كلمة المرور الجديدة والدخول</span>
-                        <ArrowLeft className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-
-                  <div className="text-center pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthView("login");
-                        setAuthError("");
-                        setAuthSuccessMsg("");
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-800 underline"
-                    >
-                      العودة لتسجيل الدخول
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Bottom footer link */}
-              {(authView === "login" || authView === "register") && (
-                <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-                  <p className="text-xs text-slate-400">
-                    {authView === "register" ? "لديك حساب بالفعل؟" : "ليس لديك حساب بعد؟"}{" "}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthView(authView === "register" ? "login" : "register");
-                        setAuthError("");
-                        setAuthSuccessMsg("");
-                      }}
-                      className="text-brand-600 hover:underline font-bold"
-                    >
-                      {authView === "register" ? "سجل دخول الآن" : "أنشئ حسابك مجاناً"}
-                    </button>
-                  </p>
-                </div>
-              )}
+              {/* Direct Link to Login */}
+              <Link
+                href="/login"
+                className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md shadow-brand-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+              >
+                <span>جرب الآن بنفسك مجاناً</span>
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -1157,12 +620,12 @@ export default function HomePage() {
               ارفع مذكرتك الأولى الآن مجاناً، ودع المعلم الذكي يتولى تلخيصها وصياغة أسئلتها وتدريبك حتى التفوق الكامل.
             </p>
             <div className="pt-2">
-              <button
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="px-8 py-3.5 bg-white text-brand-700 hover:bg-brand-50 font-black text-xs sm:text-sm rounded-xl shadow-lg transition-transform hover:scale-105"
+              <Link
+                href="/login"
+                className="px-8 py-3.5 bg-white text-brand-700 hover:bg-brand-50 font-black text-xs sm:text-sm rounded-xl shadow-lg transition-transform hover:scale-105 inline-block cursor-pointer"
               >
-                ابدأ المذاكرة الآن مجاناً 🎓
-              </button>
+                ابدأ المذاكرة الآن مجاناً 🚀
+              </Link>
             </div>
           </div>
           <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-white/5 pointer-events-none rounded-full blur-3xl" />
