@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
@@ -24,6 +24,7 @@ import { api } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname() || "";
+  const router = useRouter();
   const [user, setUser] = useState<{ full_name: string; email: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -31,15 +32,39 @@ export default function Navbar() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("studymind_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        // ignore
+    const syncUser = () => {
+      if (typeof window === "undefined") return;
+      const storedUser = localStorage.getItem("studymind_user");
+      const token = localStorage.getItem("studymind_token");
+      if (storedUser && token) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
       }
-    }
-  }, []);
+    };
+
+    syncUser();
+
+    const handleAuthEvent = (e: any) => {
+      if (e?.detail) {
+        setUser(e.detail);
+      } else {
+        syncUser();
+      }
+    };
+
+    window.addEventListener("studymind_auth_change", handleAuthEvent);
+    window.addEventListener("storage", syncUser);
+
+    return () => {
+      window.removeEventListener("studymind_auth_change", handleAuthEvent);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, [pathname]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -49,7 +74,8 @@ export default function Navbar() {
   const handleLogout = () => {
     api.auth.logout();
     setUser(null);
-    window.location.href = "/";
+    setMobileMenuOpen(false);
+    router.push("/");
   };
 
   const handleDeleteAccount = async () => {
@@ -59,7 +85,8 @@ export default function Navbar() {
       await api.auth.deleteAccount();
       setUser(null);
       setDeleteModalOpen(false);
-      window.location.href = "/";
+      setMobileMenuOpen(false);
+      router.push("/");
     } catch (err: any) {
       setDeleteError(err.message || "تعذر حذف الحساب والبيانات");
       setIsDeleting(false);

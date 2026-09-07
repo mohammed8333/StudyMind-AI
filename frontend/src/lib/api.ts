@@ -103,6 +103,7 @@ export const api = {
       if (typeof window !== "undefined") {
         localStorage.setItem("studymind_token", data.access_token);
         localStorage.setItem("studymind_user", JSON.stringify(data));
+        window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: data }));
       }
       return data;
     },
@@ -170,6 +171,7 @@ export const api = {
       if (typeof window !== "undefined") {
         localStorage.setItem("studymind_token", data.access_token);
         localStorage.setItem("studymind_user", JSON.stringify(data));
+        window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: data }));
       }
       return data;
     },
@@ -199,6 +201,7 @@ export const api = {
       if (typeof window !== "undefined") {
         localStorage.removeItem("studymind_token");
         localStorage.removeItem("studymind_user");
+        window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: null }));
       }
     },
   },

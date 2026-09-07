@@ -204,6 +204,7 @@ export default function HomePage() {
           if (user && user.is_verified === false) {
             localStorage.removeItem("studymind_token");
             localStorage.removeItem("studymind_user");
+            window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: null }));
             if (user.email) {
               setEmail(user.email);
               localStorage.setItem("studymind_pending_verify_email", user.email);
@@ -218,6 +219,7 @@ export default function HomePage() {
         .catch(() => {
           localStorage.removeItem("studymind_token");
           localStorage.removeItem("studymind_user");
+          window.dispatchEvent(new CustomEvent("studymind_auth_change", { detail: null }));
           if (pendingEmail) {
             setEmail(pendingEmail);
             setAuthView("verify_otp");
