@@ -218,177 +218,99 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center pb-24 overflow-x-hidden">
       {/* ========================================================================= */}
-      {/* SECTION 1: HERO (With Hero CTA to /login & Live AI Tutor Demo Showcase) */}
+      {/* SECTION 1: HERO (With Hero CTA to /login) */}
       {/* ========================================================================= */}
-      <section className="w-full max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-          {/* Right Column (Hero Text): Slides in from Right */}
+      <section className="w-full max-w-4xl mx-auto px-4 pt-10 sm:pt-16 pb-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="text-center flex flex-col items-center space-y-6"
+        >
+          {/* Top Pill: Drops from Top */}
           <motion.div
-            initial={{ opacity: 0, x: 80 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="lg:col-span-7 text-right space-y-6"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-bold shadow-xs"
           >
-            {/* Top Pill: Drops from Top */}
-            <motion.div
-              initial={{ opacity: 0, y: -40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-bold shadow-xs"
-            >
-              <Sparkles className="w-4 h-4 text-brand-600 animate-spin" />
-              <span>الجيل الجديد من محركات المذاكرة الذكية باللغة العربية</span>
-            </motion.div>
+            <Sparkles className="w-4 h-4 text-brand-600 animate-spin" />
+            <span>الجيل الجديد من محركات المذاكرة الذكية باللغة العربية</span>
+          </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 25 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.7 }}
-              className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight sm:leading-snug"
-            >
-              لا تسأل الذكاء الاصطناعي في الفراغ..
-              <br />
-              <span className="bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
-                حوّل مذكرتك وكتابك إلى مدرس خاص
-              </span>
-            </motion.h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.7 }}
+            className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight sm:leading-snug max-w-3xl"
+          >
+            لا تسأل الذكاء الاصطناعي في الفراغ..
+            <br />
+            <span className="bg-gradient-to-l from-brand-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
+              حوّل مذكرتك وكتابك إلى مدرس خاص
+            </span>
+          </motion.h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 25 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.7 }}
-              className="text-slate-600 text-base leading-relaxed max-w-xl"
-            >
-              ارفع كتاب الوزارة أو ملزمتك (PDF)، وسيقوم <strong>StudyMind AI</strong> بتحليل المحتوى بالكامل لبناء قاعدة معرفية توفر لك:
-              شرحاً متعدد المستويات، امتحانات تفاعلية، وتشخيصاً دقيقاً لنقاط ضعفك برقم الصفحة!
-            </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.7 }}
+            className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl"
+          >
+            ارفع كتاب الوزارة أو ملزمتك (PDF)، وسيقوم <strong>StudyMind AI</strong> بتحليل المحتوى بالكامل لبناء قاعدة معرفية توفر لك:
+            شرحاً متعدد المستويات، امتحانات تفاعلية، وتشخيصاً دقيقاً لنقاط ضعفك برقم الصفحة!
+          </motion.p>
 
-            {/* Quick Benefits Pills: Staggered from bottom */}
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.7 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-            >
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>توثيق الإجابة برقم الصفحة في كتابك</span>
-              </div>
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>تشخيص ذكي لنقاط الضعف والقوة</span>
-              </div>
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>توليد كويزات مع تصحيح وتفسير فوري</span>
-              </div>
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>تلخيص شامل للمادة بضغطة زر واحدة</span>
-              </div>
-            </motion.div>
-
-            {/* Blue Box position: CTA Buttons */}
-            <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all group cursor-pointer text-center"
-              >
-                <span>ابدأ المذاكرة الآن مجاناً 🚀</span>
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const el = document.getElementById("how-it-works");
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth" });
-                  }
-                }}
-                className="inline-flex items-center justify-center gap-2 px-5 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors group cursor-pointer text-center"
-              >
-                <span>شاهد كيف تعمل المنصة</span>
-                <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform text-brand-600" />
-              </button>
+          {/* Quick Benefits Pills: Centered Grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.7 }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-right pt-2"
+          >
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>توثيق الإجابة برقم الصفحة في كتابك</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>تشخيص ذكي لنقاط الضعف والقوة</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>توليد كويزات مع تصحيح وتفسير فوري</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-xs font-bold text-slate-700 hover:border-brand-300 transition-colors">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>تلخيص شامل للمادة بضغطة زر واحدة</span>
             </div>
           </motion.div>
 
-          {/* Left Column: Interactive Visual Showcase Demo (replacing the auth card) */}
-          <motion.div
-            initial={{ opacity: 0, x: -80 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="lg:col-span-5"
-          >
-            <div className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-2xl shadow-brand-500/10 text-right space-y-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-l from-brand-600 via-sky-500 to-emerald-500" />
+          {/* CTA Buttons: Centered */}
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+            <Link
+              href="/login"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all group cursor-pointer text-center"
+            >
+              <span>ابدأ المذاكرة الآن مجاناً 🚀</span>
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            </Link>
 
-              {/* Mock Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-black text-slate-800">جلسة مذاكرة ذكية مباشرة</span>
-                </div>
-                <span className="text-[11px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200">
-                  كتاب الفيزياء ص 37
-                </span>
-              </div>
-
-              {/* Student Query Mock */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 text-right space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                  <span>سؤال الطالب:</span>
-                  <span className="text-brand-600">تلقائي من المذكرة</span>
-                </div>
-                <p className="text-xs font-bold text-slate-800 leading-relaxed">
-                  "كيف أفرق بين الكتلة والوزن في مسائل نيوتن بدون ما أغلط؟"
-                </p>
-              </div>
-
-              {/* AI Tutor Response Mock */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-brand-50/70 via-sky-50/40 to-emerald-50/30 border border-brand-200/80 text-right space-y-2">
-                <div className="flex items-center gap-2 text-xs font-black text-brand-800">
-                  <Sparkles className="w-4 h-4 text-brand-600 animate-spin" />
-                  <span>رد المعلم الذكي (بتقنية فاينمان):</span>
-                </div>
-                <p className="text-xs font-medium text-slate-700 leading-relaxed">
-                  الكتلة (m) هي مقدار ما يحتويه جسمك من مادة، وثابتة لو سافرت للمريخ! أما الوزن (W = m × g) فهو قوة جذب الكوكب لك، ويتغير بتغير المكان.
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t border-brand-200/50 text-[10px] font-bold">
-                  <span className="text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>موثق رقمياً من مذكرتك</span>
-                  </span>
-                  <span className="text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
-                    [المصدر: ص 37 - السطر 4]
-                  </span>
-                </div>
-              </div>
-
-              {/* Smart Badges */}
-              <div className="grid grid-cols-2 gap-2 text-[11px] font-bold">
-                <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 shadow-2xs">
-                  <Target className="w-3.5 h-3.5 text-brand-600" />
-                  <span>توليد كويز تلقائي</span>
-                </div>
-                <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 shadow-2xs">
-                  <BrainCircuit className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>تشخيص فوري للضعف</span>
-                </div>
-              </div>
-
-              {/* Direct Link to Login */}
-              <Link
-                href="/login"
-                className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md shadow-brand-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
-              >
-                <span>جرب الآن بنفسك مجاناً</span>
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-            </div>
-          </motion.div>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("how-it-works");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors group cursor-pointer text-center"
+            >
+              <span>شاهد كيف تعمل المنصة</span>
+              <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform text-brand-600" />
+            </button>
+          </div>
+        </motion.div>
       </section>
 
       {/* ========================================================================= */}
